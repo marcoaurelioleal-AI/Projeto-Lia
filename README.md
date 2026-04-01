@@ -35,7 +35,7 @@ Este é o coração da inteligência do sistema. Através de um chat interativo 
 Esta aba centraliza a base de conhecimento estática do grupo. Através de menus de seleção, o funcionário escolhe a unidade (Burguer, Pizza ou Salgados) e tem acesso imediato a procedimentos fixos, como temperatura de chapa, tempos de preparo e dicas de ouro para evitar desperdício.
 
 <p align="center">
-  <img src=projetolia3.png" alt="Manuais Técnicos e Procedimentos" width="80%">
+  <img src="projetolia3.png" alt="Manuais Técnicos e Procedimentos" width="80%">
 </p>
 <p align="center"><em>Visualização de Procedimentos de Chapa para Lia Burguer.</em></p>
 
