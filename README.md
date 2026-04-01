@@ -20,14 +20,14 @@ A aplicação é dividida em módulos estratégicos, acessíveis através de uma
 Para garantir a integridade da operação, o sistema possui uma tela de login restrita. O acesso é liberado apenas para funcionários autorizados via senha de turno, protegendo as informações estratégicas do grupo.
 
 <p align="center">
-  <img src="screenshots/projetolia1.png" alt="Tela de Login do Grupo Lia" width="80%">
+  <img src="projetolia1.png" alt="Tela de Login do Grupo Lia" width="80%">
 </p>
 
 ### 🤖 2. Consultoria IA (Assistente Lia)
 Este é o coração da inteligência do sistema. Através de um chat interativo conectado à API do Google Gemini, o funcionário tem acesso a um "Especialista Operacional" 24/7. A IA foi instruída para atuar como Chef Executivo do Grupo Lia, respondendo dúvidas técnicas, sugerindo tempos de preparo e garantindo a padronização.
 
 <p align="center">
-  <img src="screenshots/projetolia2.png" alt="Interface de Chat com IA" width="80%">
+  <img src="projetolia2.png" alt="Interface de Chat com IA" width="80%">
 </p>
 <p align="center"><em>Exemplo: IA respondendo com detalhes técnicos sobre a temperatura ideal para fritura.</em></p>
 
@@ -35,7 +35,7 @@ Este é o coração da inteligência do sistema. Através de um chat interativo 
 Esta aba centraliza a base de conhecimento estática do grupo. Através de menus de seleção, o funcionário escolhe a unidade (Burguer, Pizza ou Salgados) e tem acesso imediato a procedimentos fixos, como temperatura de chapa, tempos de preparo e dicas de ouro para evitar desperdício.
 
 <p align="center">
-  <img src="screenshots/projetolia3.png" alt="Manuais Técnicos e Procedimentos" width="80%">
+  <img src=projetolia3.png" alt="Manuais Técnicos e Procedimentos" width="80%">
 </p>
 <p align="center"><em>Visualização de Procedimentos de Chapa para Lia Burguer.</em></p>
 
@@ -43,12 +43,12 @@ Esta aba centraliza a base de conhecimento estática do grupo. Através de menus
 Módulo focado na execução perfeita das rotinas. O sistema oferece abas internas que dividem os checklists por tipo (Limpeza ou Delivery) e por temporalidade (Segunda-feira, Sexta-feira e Diariamente), garantindo que nenhuma etapa crítica seja esquecida no início, durante ou fim do expediente.
 
 <p align="center">
-  <img src="screenshots/projetolia4.png" alt="Checklist de Limpeza" width="80%">
+  <img src="projetolia4.png" alt="Checklist de Limpeza" width="80%">
 </p>
 <p align="center"><em>Checklist detalhado de Limpeza para Segundas e Diariamente.</em></p>
 
 <p align="center">
-  <img src="screenshots/projetolia5.png" alt="Checklist de Atendimento Delivery" width="80%">
+  <img src="projetolia5.png" alt="Checklist de Atendimento Delivery" width="80%">
 </p>
 <p align="center"><em>Checklist operacional para rotinas de Delivery e Fechamento.</em></p>
 
