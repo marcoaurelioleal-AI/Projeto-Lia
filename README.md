@@ -99,3 +99,29 @@ Se você deseja rodar este projeto na sua máquina para testes:
 
 ---
 Este projeto é um exemplo de como a tecnologia e a IA podem ser aplicadas para otimizar operações reais no varejo de alimentação, garantindo padronização, reduzindo erros e acelerando o treinamento de equipe.
+
+## 📦 Deploy (Render via GitHub / Container)
+
+Recomendamos usar Render (PaaS) como primeiro ambiente de produção: boa combinação entre simplicidade e controle. Abaixo os passos automáticos que a pipeline faz e o que você precisa configurar.
+
+O que já incluí neste repositório:
+- `Dockerfile` — imagem pronta para rodar o app Streamlit.
+- `.dockerignore` — arquivos ignorados no build.
+- `.github/workflows/deploy-render.yml` — workflow que constrói a imagem, envia para o GitHub Container Registry (GHCR) e, opcionalmente, aciona um deploy no Render via API.
+
+Configurar no GitHub (Repository > Settings > Secrets):
+- `RENDER_API_KEY` — API Key da sua conta Render (se quiser acionar deploy automaticamente).
+- `RENDER_SERVICE_ID` — ID do serviço no Render que receberá o deploy.
+
+Como funciona a pipeline:
+1. Push para `main` ou execução manual do workflow.
+2. GitHub Actions constrói a imagem Docker e envia para `ghcr.io/<owner>/<repo>:latest`.
+3. Se `RENDER_API_KEY` e `RENDER_SERVICE_ID` estiverem configurados, o workflow faz um POST para a API do Render para iniciar o deploy.
+
+Alternativas e rollback:
+- Para um deploy rápido e gratuito para testes, você pode usar Streamlit Community Cloud (link no topo do README). Não é recomendado para produção crítica.
+- Para controle total (compliance/alta disponibilidade), migre para Azure App Service / AKS ou VPS com Docker + Traefik.
+- Rollback simples: reverter o commit ou usar uma tag anterior e dar push; a pipeline reconstroi a imagem a partir do commit/tag.
+
+Se quiser, eu configuro também um workflow que publique a imagem no Docker Hub em vez do GHCR, ou um `Procfile` para Streamlit Community Cloud.
+

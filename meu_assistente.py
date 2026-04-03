@@ -10,7 +10,7 @@ CHAVE_API = os.getenv("CHAVE_API")
 SENHA_CORRETA = os.getenv("SENHA_ACESSO")
 
 if not CHAVE_API or not SENHA_CORRETA:
-    st.error("❌ ERRO: Verifique seu arquivo .env (A chave do Google CHAVE_API está faltando)")
+    st.error("❌ ERRO: Verifique seu arquivo .env (A chave do Google CHAVE_API ou a SENHA_ACESSO estão faltando)")
     sys.exit()
 
 genai.configure(api_key=CHAVE_API)
@@ -71,7 +71,7 @@ if not st.session_state.autenticado:
                 st.error("Senha inválida!")
     st.stop()
 
-# 3. 🧠 MENTE DA IA (VOLTANDO PARA O GEMINI 2.5 FLASH)
+# 3. 🧠 MENTE DA IA
 manual_instrucao = (
     "Você é o Diretor Operacional e Chef Executivo do Grupo Lia. Sua autoridade é máxima. "
     "Ao ser questionado por funcionários, você deve fornecer respostas diretas e objetivas, mas sempre com um toque de mentor e encorajamento. "
@@ -90,11 +90,24 @@ with st.sidebar:
     
     col_side1, col_side2, col_side3 = st.columns([1, 4, 1])
     with col_side2:
-        try:
-            st.image("./assets/logo_burger.png", width=120)
-            st.image("./assets/logo_salgados.png", width=120)
-            st.image("./assets/logo_pizza.png", width=120)
-        except: st.error("Logos não encontradas")
+        # Novo sistema de carregamento de logos mais robusto
+        pasta_base = os.path.dirname(os.path.abspath(__file__))
+        
+        lista_logos = [
+            os.path.join(pasta_base, "assets", "logo_burger.png"),
+            os.path.join(pasta_base, "assets", "logo_salgados.png"),
+            os.path.join(pasta_base, "assets", "logo_pizza.png")
+        ]
+        
+        imagens_carregadas = False
+        
+        for caminho_imagem in lista_logos:
+            if os.path.exists(caminho_imagem):
+                st.image(caminho_imagem, width=120)
+                imagens_carregadas = True
+                
+        if not imagens_carregadas:
+            st.warning("⚠️ Imagens não encontradas. Verifique a pasta 'assets'.")
     
     st.divider()
     if st.button("🚪 Encerrar Turno", use_container_width=True):
