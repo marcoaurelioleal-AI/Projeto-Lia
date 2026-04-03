@@ -1,0 +1,15 @@
+[theme]
+# Cor vibrante (usada em links, botões) baseada no vermelho do Burguer
+primaryColor="#CC2936" 
+
+# Cor de fundo profundo baseado no borgonha da Pizza
+backgroundColor="#380A15" 
+
+# Cor de fundo secundário (caixas de chat) ligeiramente mais clara
+secondaryBackgroundColor="#541A23" 
+
+# Cor do texto principal baseada no creme do Salgados
+textColor="#FBF6E9" 
+
+# Fonte premium (sans serif é mais limpa para leitura)
+font="sans serif"
