@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,6 +13,7 @@ from ..schemas import ChatRequest, ChatResponse
 from ..security import get_current_user
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+logger = logging.getLogger(__name__)
 
 
 def build_manual_context(db: Session) -> str:
@@ -58,7 +61,8 @@ def chat(
             ),
         )
         return ChatResponse(reply=response.text or "Não consegui responder agora.", mode="gemini")
-    except Exception:
+    except Exception as exc:
+        logger.exception("Falha ao consultar Gemini: %s", exc)
         return ChatResponse(
             reply="Não consegui consultar a IA agora. Confira a cota, a chave Gemini e tente novamente.",
             mode="error",
