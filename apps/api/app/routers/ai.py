@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from hashlib import sha256
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -42,6 +43,18 @@ def build_manual_context(db: Session) -> str:
         f"ponto crítico {manual.critical_point}."
         for manual in manuals
     )
+
+
+@router.get("/status")
+def ai_status(_: User = Depends(get_current_user)) -> dict[str, str | bool | int | None]:
+    key = settings.gemini_api_key or ""
+    fingerprint = sha256(key.encode()).hexdigest()[:12] if key else None
+    return {
+        "configured": bool(key),
+        "key_length": len(key) if key else 0,
+        "key_fingerprint": fingerprint,
+        "model": settings.gemini_model,
+    }
 
 
 @router.post("/chat", response_model=ChatResponse)
