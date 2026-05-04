@@ -1,11 +1,14 @@
-import { useMutation } from '@tanstack/react-query';
-import { Bot, Send, UserRound } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Bot, KeyRound, Send, ShieldCheck, UserRound } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { api } from '../api/client';
 import { PageHeader } from '../components/PageHeader';
+import { useAuth } from '../contexts/useAuth';
 import type { ChatMessage } from '../types';
 
 export function AssistantPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
@@ -13,6 +16,13 @@ export function AssistantPage() {
     }
   ]);
   const [input, setInput] = useState('');
+
+  const statusQuery = useQuery({
+    queryKey: ['ai-status'],
+    queryFn: api.aiStatus,
+    enabled: isAdmin,
+    staleTime: 30_000
+  });
 
   const mutation = useMutation({
     mutationFn: (history: ChatMessage[]) => api.chat(history),
@@ -45,6 +55,43 @@ export function AssistantPage() {
         title="Assistente operacional"
         description="Pergunte sobre preparo, processos, atendimento e padrões. A chave Gemini fica protegida no backend."
       />
+
+      {isAdmin ? (
+        <section className="mb-4 grid gap-3 rounded-lg border border-lia-red/10 bg-white p-4 shadow-sm md:grid-cols-4">
+          <div className="flex items-center gap-3 md:col-span-1">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-lia-red text-white">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-lia-red">Diagnostico IA</p>
+              <p className="font-extrabold text-lia-burgundy">
+                {statusQuery.data?.configured ? 'Gemini configurado' : 'Gemini sem chave'}
+              </p>
+            </div>
+          </div>
+          <div className="rounded-lg bg-lia-cream px-3 py-2">
+            <p className="text-xs font-bold uppercase text-lia-muted">Modelo</p>
+            <p className="truncate font-semibold text-lia-ink">{statusQuery.data?.model ?? 'Carregando...'}</p>
+          </div>
+          <div className="rounded-lg bg-lia-cream px-3 py-2">
+            <p className="text-xs font-bold uppercase text-lia-muted">Tamanho da chave</p>
+            <p className="font-semibold text-lia-ink">{statusQuery.data?.key_length ?? '--'} caracteres</p>
+          </div>
+          <div className="rounded-lg bg-lia-cream px-3 py-2">
+            <p className="flex items-center gap-1 text-xs font-bold uppercase text-lia-muted">
+              <KeyRound size={13} /> Fingerprint
+            </p>
+            <p className="font-mono text-sm font-semibold text-lia-ink">
+              {statusQuery.data?.key_fingerprint ?? 'indisponivel'}
+            </p>
+          </div>
+          {statusQuery.isError ? (
+            <p className="text-sm font-semibold text-lia-red md:col-span-4">
+              Nao consegui carregar o diagnostico da IA. Entre novamente e tente de novo.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="surface flex min-h-[65vh] flex-col rounded-lg">
         <div className="flex-1 space-y-3 overflow-y-auto p-4">

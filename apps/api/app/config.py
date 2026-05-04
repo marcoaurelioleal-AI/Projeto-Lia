@@ -21,6 +21,20 @@ def _clean_env(value: str | None) -> str | None:
     return cleaned or None
 
 
+def _clean_secret(value: str | None) -> str | None:
+    cleaned = _clean_env(value)
+    if not cleaned:
+        return None
+    placeholders = {
+        "sua_nova_chave_gemini",
+        "sua_chave_api_do_google_gemini_aqui",
+        "sua_chave_gemini",
+    }
+    if cleaned.lower() in placeholders:
+        return None
+    return cleaned
+
+
 @dataclass(frozen=True)
 class Settings:
     app_name: str = "Projeto LIA API"
@@ -28,7 +42,7 @@ class Settings:
     jwt_secret: str = _clean_env(os.getenv("JWT_SECRET") or os.getenv("SENHA_ACESSO")) or "lia-dev-secret-change-me"
     access_token_minutes: int = int(os.getenv("ACCESS_TOKEN_MINUTES", "480"))
     frontend_origins: list[str] = field(default_factory=list)
-    gemini_api_key: str | None = _clean_env(
+    gemini_api_key: str | None = _clean_secret(
         os.getenv("GEMINI_API_KEY") or os.getenv("CHAVE_API") or os.getenv("GOOGLE_API_KEY")
     )
     gemini_model: str = _clean_env(os.getenv("MODELO_GEMINI")) or "gemini-2.5-flash"

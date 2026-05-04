@@ -68,3 +68,10 @@ export interface ChatResponse {
   reply: string;
   mode: 'offline' | 'gemini' | 'error';
 }
+
+export interface AiStatus {
+  configured: boolean;
+  key_length: number;
+  key_fingerprint: string | null;
+  model: string;
+}

@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatResponse, ChecklistRun, LoginResponse, Manual, User } from '../types';
+import type { AiStatus, ChatMessage, ChatResponse, ChecklistRun, LoginResponse, Manual, User } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 const TOKEN_KEY = 'lia_access_token';
@@ -58,5 +58,6 @@ export const api = {
     request<ChatResponse>('/ai/chat', {
       method: 'POST',
       body: JSON.stringify({ messages })
-    })
+    }),
+  aiStatus: () => request<AiStatus>('/ai/status')
 };
