@@ -113,11 +113,3 @@ Variáveis importantes no Render:
 - `FRONTEND_ORIGINS`
 
 Para o serviço Docker no Render, use `DATABASE_URL=sqlite:////app/data/lia.db` apenas para teste simples. Para produção real, prefira PostgreSQL no `DATABASE_URL`, use `AUTO_CREATE_TABLES=false` e troque todos os segredos padrão.
-
-## Próximos passos recomendados
-
-- Criar painel admin para editar manuais e templates de checklist.
-- Adicionar cadastro de funcionários.
-- Criar relatórios semanais de tarefas, perdas e fechamento.
-- Trocar SQLite por PostgreSQL no Render.
-- Adicionar testes end-to-end mobile com Playwright.
