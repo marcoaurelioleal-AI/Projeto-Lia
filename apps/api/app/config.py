@@ -35,10 +35,30 @@ def _clean_secret(value: str | None) -> str | None:
     return cleaned
 
 
+def _clean_bool(value: str | None, default: bool = False) -> bool:
+    cleaned = _clean_env(value)
+    if cleaned is None:
+        return default
+    return cleaned.lower() in {"1", "true", "yes", "on"}
+
+
+def _database_url(value: str | None) -> str | None:
+    cleaned = _clean_env(value)
+    if cleaned is None:
+        return None
+    if cleaned.startswith("postgres://"):
+        return cleaned.replace("postgres://", "postgresql+psycopg://", 1)
+    if cleaned.startswith("postgresql://"):
+        return cleaned.replace("postgresql://", "postgresql+psycopg://", 1)
+    return cleaned
+
+
 @dataclass(frozen=True)
 class Settings:
     app_name: str = "Projeto LIA API"
-    database_url: str = _clean_env(os.getenv("DATABASE_URL")) or "sqlite:////app/data/lia.db"
+    app_env: str = _clean_env(os.getenv("APP_ENV") or os.getenv("ENVIRONMENT")) or "development"
+    database_url: str = _database_url(os.getenv("DATABASE_URL")) or "sqlite:///./lia.db"
+    auto_create_tables: bool = _clean_bool(os.getenv("AUTO_CREATE_TABLES"), default=app_env != "production")
     jwt_secret: str = _clean_env(os.getenv("JWT_SECRET") or os.getenv("SENHA_ACESSO")) or "lia-dev-secret-change-me"
     access_token_minutes: int = int(os.getenv("ACCESS_TOKEN_MINUTES", "480"))
     frontend_origins: list[str] = field(default_factory=list)

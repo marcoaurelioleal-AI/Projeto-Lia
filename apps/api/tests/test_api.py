@@ -5,8 +5,9 @@ import os
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["LIA_ADMIN_USER"] = "admin"
 os.environ["LIA_ADMIN_PASSWORD"] = "admin123"
-os.environ.pop("GEMINI_API_KEY", None)
-os.environ.pop("CHAVE_API", None)
+os.environ.pop("OPENAI_API_KEY", None)
+os.environ["GEMINI_API_KEY"] = "sua_nova_chave_gemini"
+os.environ["CHAVE_API"] = "sua_nova_chave_gemini"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -58,4 +59,51 @@ def test_ai_offline_mode() -> None:
             json={"messages": [{"role": "user", "content": "Qual temperatura da chapa?"}]},
         )
         assert response.status_code == 200
-        assert response.json()["mode"] in {"offline", "error"}
+        payload = response.json()
+        assert payload["mode"] in {"offline", "error"}
+        assert payload["session_id"]
+        assert payload["sources"]
+        assert payload["sources"][0]["unit"] in {"Lia Burguer", "Lia Pizza", "Lia Salgados"}
+
+
+def test_ai_logs_summarized_history() -> None:
+    with TestClient(app) as client:
+        headers = auth_headers(client)
+        response = client.post(
+            "/ai/chat",
+            headers=headers,
+            json={
+                "messages": [{"role": "user", "content": "Como conferir validade dos insumos?"}],
+                "store": "Grupo Lia",
+                "unit": "Lia Pizza",
+            },
+        )
+        assert response.status_code == 200
+
+        history = client.get("/ai/history", headers=headers)
+        assert history.status_code == 200
+        items = history.json()
+        assert items
+        assert items[0]["session_id"] == response.json()["session_id"]
+        assert items[0]["unit"] == "Lia Pizza"
+        assert "validade" in items[0]["question"].lower()
+
+
+def test_ai_unknown_question_requires_manager_confirmation() -> None:
+    with TestClient(app) as client:
+        headers = auth_headers(client)
+        response = client.post(
+            "/ai/chat",
+            headers=headers,
+            json={"messages": [{"role": "user", "content": "Como calibrar um foguete orbital?"}]},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["needs_manager_confirmation"] is True
+        assert payload["sources"] == []
+
+
+def test_ai_requires_token() -> None:
+    with TestClient(app) as client:
+        response = client.post("/ai/chat", json={"messages": [{"role": "user", "content": "Oi"}]})
+        assert response.status_code == 401

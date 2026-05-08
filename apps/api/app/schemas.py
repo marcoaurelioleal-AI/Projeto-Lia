@@ -91,13 +91,40 @@ class ChatMessage(BaseModel):
     content: str = Field(min_length=1, max_length=4000)
 
 
+class ChatSource(BaseModel):
+    manual_id: int
+    unit: str
+    manual_title: str
+    section_title: str | None = None
+    excerpt: str
+
+
 class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1, max_length=12)
+    store: str | None = Field(default=None, max_length=80)
+    unit: str | None = Field(default=None, max_length=80)
+    session_id: int | None = None
 
 
 class ChatResponse(BaseModel):
     reply: str
     mode: str
+    session_id: int
+    sources: list[ChatSource] = []
+    needs_manager_confirmation: bool = False
+
+
+class AiChatHistoryItem(BaseModel):
+    id: int
+    session_id: int
+    store: str
+    unit: str | None = None
+    question: str
+    answer_summary: str
+    sources: list[ChatSource] = []
+    mode: str
+    needs_manager_confirmation: bool
+    created_at: datetime
 
 
 class HealthResponse(BaseModel):

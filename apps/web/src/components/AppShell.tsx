@@ -7,7 +7,7 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: Home },
   { to: '/checklists', label: 'Tarefas', icon: CheckSquare },
   { to: '/manuals', label: 'Manuais', icon: BookOpen },
-  { to: '/assistant', label: 'IA', icon: Bot }
+  { to: '/assistant', label: 'Lia', icon: Bot }
 ];
 
 export function AppShell() {

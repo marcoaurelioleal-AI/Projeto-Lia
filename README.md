@@ -29,6 +29,7 @@ Backend:
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt -r requirements-dev.txt
+alembic upgrade head
 uvicorn apps.api.app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -67,15 +68,43 @@ npm run typecheck
 npm run build
 ```
 
+## Banco de dados e migrations
+
+O projeto usa `DATABASE_URL` como configuracao central do banco. SQLite e adequado para desenvolvimento local e testes simples. Para producao, prefira PostgreSQL.
+
+Exemplos:
+
+```env
+DATABASE_URL="sqlite:///./lia.db"
+DATABASE_URL="postgresql+psycopg://usuario:senha@host:5432/banco"
+```
+
+Em desenvolvimento, `AUTO_CREATE_TABLES=true` permite manter o fluxo local simples. Em producao, use `AUTO_CREATE_TABLES=false` e aplique migrations com Alembic.
+
+Gerar migration:
+
+```bash
+alembic revision --autogenerate -m "descricao_da_migration"
+```
+
+Aplicar migrations:
+
+```bash
+alembic upgrade head
+```
+
 ## Deploy
 
 O `Dockerfile` atual constrói o React e copia o build para a API FastAPI, que serve a SPA em produção. Isso permite manter um único Web Service no Render.
+
+No Docker, o comando de inicializacao aplica `alembic upgrade head` antes de iniciar o Uvicorn.
 
 O arquivo `render.yaml` deixa a configuração base pronta para Blueprint/Infrastructure as Code no Render.
 
 Variáveis importantes no Render:
 
 - `DATABASE_URL`
+- `AUTO_CREATE_TABLES`
 - `JWT_SECRET`
 - `LIA_ADMIN_USER`
 - `LIA_ADMIN_PASSWORD`
@@ -83,7 +112,7 @@ Variáveis importantes no Render:
 - `MODELO_GEMINI`
 - `FRONTEND_ORIGINS`
 
-Para o serviço Docker no Render, use `DATABASE_URL=sqlite:////app/data/lia.db` se quiser um teste simples. Para produção real, prefira PostgreSQL no `DATABASE_URL` e troque todos os segredos padrão.
+Para o serviço Docker no Render, use `DATABASE_URL=sqlite:////app/data/lia.db` apenas para teste simples. Para produção real, prefira PostgreSQL no `DATABASE_URL`, use `AUTO_CREATE_TABLES=false` e troque todos os segredos padrão.
 
 ## Próximos passos recomendados
 

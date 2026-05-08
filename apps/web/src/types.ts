@@ -64,9 +64,20 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface ChatSource {
+  manual_id: number;
+  unit: string;
+  manual_title: string;
+  section_title: string | null;
+  excerpt: string;
+}
+
 export interface ChatResponse {
   reply: string;
   mode: 'offline' | 'gemini' | 'error';
+  session_id: number;
+  sources: ChatSource[];
+  needs_manager_confirmation: boolean;
 }
 
 export interface AiStatus {
@@ -74,4 +85,17 @@ export interface AiStatus {
   key_length: number;
   key_fingerprint: string | null;
   model: string;
+}
+
+export interface AiChatHistoryItem {
+  id: number;
+  session_id: number;
+  store: string;
+  unit: string | null;
+  question: string;
+  answer_summary: string;
+  sources: ChatSource[];
+  mode: 'offline' | 'gemini' | 'error';
+  needs_manager_confirmation: boolean;
+  created_at: string;
 }

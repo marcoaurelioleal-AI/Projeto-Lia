@@ -8,6 +8,8 @@ services:
     envVars:
       - key: DATABASE_URL
         value: sqlite:////app/data/lia.db
+      - key: AUTO_CREATE_TABLES
+        value: "false"
       - key: JWT_SECRET
         generateValue: true
       - key: LIA_ADMIN_USER

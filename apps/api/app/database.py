@@ -14,6 +14,8 @@ if settings.database_url.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
     if settings.database_url.endswith(":memory:"):
         engine_kwargs["poolclass"] = StaticPool
+else:
+    engine_kwargs["pool_pre_ping"] = True
 
 engine = create_engine(settings.database_url, **engine_kwargs)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)

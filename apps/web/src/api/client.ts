@@ -1,4 +1,13 @@
-import type { AiStatus, ChatMessage, ChatResponse, ChecklistRun, LoginResponse, Manual, User } from '../types';
+import type {
+  AiChatHistoryItem,
+  AiStatus,
+  ChatMessage,
+  ChatResponse,
+  ChecklistRun,
+  LoginResponse,
+  Manual,
+  User
+} from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 const TOKEN_KEY = 'lia_access_token';
@@ -54,10 +63,16 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ closing_note: closingNote })
     }),
-  chat: (messages: ChatMessage[]) =>
+  chat: (messages: ChatMessage[], options: { store?: string; unit?: string; sessionId?: number | null } = {}) =>
     request<ChatResponse>('/ai/chat', {
       method: 'POST',
-      body: JSON.stringify({ messages })
+      body: JSON.stringify({
+        messages,
+        store: options.store,
+        unit: options.unit || undefined,
+        session_id: options.sessionId ?? undefined
+      })
     }),
+  aiHistory: () => request<AiChatHistoryItem[]>('/ai/history'),
   aiStatus: () => request<AiStatus>('/ai/status')
 };

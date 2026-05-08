@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -113,3 +113,35 @@ class ChecklistRunItem(Base):
     run: Mapped[ChecklistRun] = relationship(back_populates="items")
     template_item: Mapped[ChecklistTemplateItem] = relationship()
     completed_by: Mapped[User] = relationship()
+
+
+class AiChatSession(Base):
+    __tablename__ = "ai_chat_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    store: Mapped[str] = mapped_column(String(80), default="Grupo Lia")
+    unit: Mapped[str] = mapped_column(String(80), nullable=True)
+    title: Mapped[str] = mapped_column(String(160))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+    user: Mapped[User] = relationship()
+    logs: Mapped[list["AiChatLog"]] = relationship(
+        back_populates="session", cascade="all, delete-orphan", order_by="AiChatLog.created_at"
+    )
+
+
+class AiChatLog(Base):
+    __tablename__ = "ai_chat_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("ai_chat_sessions.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    question: Mapped[str] = mapped_column(Text)
+    answer_summary: Mapped[str] = mapped_column(Text)
+    sources: Mapped[list[dict[str, str | int | None]]] = mapped_column(JSON, default=list)
+    mode: Mapped[str] = mapped_column(String(30))
+    needs_manager_confirmation: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    session: Mapped[AiChatSession] = relationship(back_populates="logs")
+    user: Mapped[User] = relationship()
