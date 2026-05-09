@@ -181,8 +181,20 @@ class ChecklistTemplateItemRead(BaseModel):
     section: str
     text: str
     position: int
+    active: bool
 
     model_config = {"from_attributes": True}
+
+
+class ChecklistTemplateItemCreate(BaseModel):
+    section: str = Field(min_length=1, max_length=120)
+    text: str = Field(min_length=1, max_length=1200)
+
+
+class ChecklistTemplateItemUpdate(BaseModel):
+    section: str | None = Field(default=None, min_length=1, max_length=120)
+    text: str | None = Field(default=None, min_length=1, max_length=1200)
+    active: bool | None = None
 
 
 class ChecklistTemplateRead(BaseModel):
@@ -190,9 +202,23 @@ class ChecklistTemplateRead(BaseModel):
     title: str
     category: str
     store: str
+    active: bool
     items: list[ChecklistTemplateItemRead] = []
 
     model_config = {"from_attributes": True}
+
+
+class ChecklistTemplateCreate(BaseModel):
+    title: str = Field(min_length=2, max_length=160)
+    category: str = Field(min_length=2, max_length=80)
+    store: str = Field(default="Grupo Lia", min_length=1, max_length=80)
+
+
+class ChecklistTemplateUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=160)
+    category: str | None = Field(default=None, min_length=2, max_length=80)
+    store: str | None = Field(default=None, min_length=1, max_length=80)
+    active: bool | None = None
 
 
 class ReportSummaryRead(BaseModel):

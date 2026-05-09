@@ -301,6 +301,12 @@ Essa camada foi criada para permitir evolução futura para RAG sem reescrever a
 | `PATCH` | `/admin/stores/{store_id}` | Atualiza nome ou status da loja. |
 | `DELETE` | `/admin/stores/{store_id}` | Desativa loja sem remover histórico. |
 | `GET` | `/admin/checklist-templates` | Lista templates de checklist. |
+| `POST` | `/admin/checklist-templates` | Cria template de checklist. |
+| `PATCH` | `/admin/checklist-templates/{template_id}` | Atualiza template de checklist. |
+| `DELETE` | `/admin/checklist-templates/{template_id}` | Desativa template sem remover histórico. |
+| `POST` | `/admin/checklist-templates/{template_id}/items` | Cria item em um template. |
+| `PATCH` | `/admin/checklist-template-items/{item_id}` | Atualiza item de template. |
+| `DELETE` | `/admin/checklist-template-items/{item_id}` | Desativa item sem remover histórico. |
 | `GET` | `/admin/manuals` | Lista manuais para administradores. |
 | `GET` | `/incidents` | Lista ocorrências operacionais. |
 | `POST` | `/incidents` | Cria ocorrência operacional. |
@@ -314,7 +320,7 @@ Essa camada foi criada para permitir evolução futura para RAG sem reescrever a
 
 ## Novas Áreas Operacionais
 
-- `/admin`: painel administrativo com criação/edição/desativação de usuários e lojas, além de templates, manuais, ocorrências, relatórios e auditoria de evidências.
+- `/admin`: painel administrativo com criação/edição/desativação de usuários, lojas, templates de checklist e itens, além de manuais, ocorrências, relatórios e auditoria de evidências.
 - `/incidents`: registro e acompanhamento de ocorrências reais do turno.
 - `/reports`: resumo semanal ou mensal para gestão.
 - Checklists: cada item agora aceita foto como evidência, com storage local protegido por autenticação.

@@ -140,3 +140,33 @@ def test_admin_can_manage_users_and_stores() -> None:
         disabled_store = client.delete(f"/admin/stores/{store_id}", headers=headers)
         assert disabled_store.status_code == 200
         assert disabled_store.json()["active"] is False
+
+
+def test_admin_can_manage_checklist_templates() -> None:
+    with TestClient(app) as client:
+        headers = auth_headers(client)
+
+        created = client.post(
+            "/admin/checklist-templates",
+            headers=headers,
+            json={"title": "Checklist Teste", "category": "teste", "store": "Grupo Lia"},
+        )
+        assert created.status_code == 200
+        template_id = created.json()["id"]
+
+        with_item = client.post(
+            f"/admin/checklist-templates/{template_id}/items",
+            headers=headers,
+            json={"section": "Abertura", "text": "Conferir item de teste"},
+        )
+        assert with_item.status_code == 200
+        item = with_item.json()["items"][0]
+        assert item["active"] is True
+
+        disabled_item = client.delete(f"/admin/checklist-template-items/{item['id']}", headers=headers)
+        assert disabled_item.status_code == 200
+        assert disabled_item.json()["items"][0]["active"] is False
+
+        disabled_template = client.delete(f"/admin/checklist-templates/{template_id}", headers=headers)
+        assert disabled_template.status_code == 200
+        assert disabled_template.json()["active"] is False

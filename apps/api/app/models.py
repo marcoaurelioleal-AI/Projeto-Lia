@@ -76,6 +76,7 @@ class ChecklistTemplate(Base):
     title: Mapped[str] = mapped_column(String(160), unique=True)
     category: Mapped[str] = mapped_column(String(80))
     store: Mapped[str] = mapped_column(String(80), default="Grupo Lia")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
     items: Mapped[list["ChecklistTemplateItem"]] = relationship(
         back_populates="template", cascade="all, delete-orphan", order_by="ChecklistTemplateItem.position"
     )
@@ -89,6 +90,7 @@ class ChecklistTemplateItem(Base):
     section: Mapped[str] = mapped_column(String(120))
     text: Mapped[str] = mapped_column(Text)
     position: Mapped[int] = mapped_column(Integer, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
     template: Mapped[ChecklistTemplate] = relationship(back_populates="items")
 
 

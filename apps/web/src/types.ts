@@ -78,6 +78,7 @@ export interface ChecklistTemplateItem {
   section: string;
   text: string;
   position: number;
+  active: boolean;
 }
 
 export interface ChecklistTemplate {
@@ -85,7 +86,19 @@ export interface ChecklistTemplate {
   title: string;
   category: string;
   store: string;
+  active: boolean;
   items: ChecklistTemplateItem[];
+}
+
+export interface ChecklistTemplateCreate {
+  title: string;
+  category: string;
+  store: string;
+}
+
+export interface ChecklistTemplateItemCreate {
+  section: string;
+  text: string;
 }
 
 export type IncidentCategory =

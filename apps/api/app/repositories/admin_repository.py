@@ -3,7 +3,16 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from ..models import ChecklistRun, ChecklistTemplate, Manual, ManualSection, OperationalIncident, Store, User
+from ..models import (
+    ChecklistRun,
+    ChecklistTemplate,
+    ChecklistTemplateItem,
+    Manual,
+    ManualSection,
+    OperationalIncident,
+    Store,
+    User,
+)
 
 
 class AdminRepository:
@@ -55,6 +64,29 @@ class AdminRepository:
                 select(ChecklistTemplate).options(selectinload(ChecklistTemplate.items)).order_by(ChecklistTemplate.title)
             ).all()
         )
+
+    def get_checklist_template(self, template_id: int) -> ChecklistTemplate | None:
+        return self.db.scalar(
+            select(ChecklistTemplate).options(selectinload(ChecklistTemplate.items)).where(ChecklistTemplate.id == template_id)
+        )
+
+    def get_checklist_template_by_title(self, title: str) -> ChecklistTemplate | None:
+        return self.db.scalar(select(ChecklistTemplate).where(ChecklistTemplate.title == title))
+
+    def add_checklist_template(self, template: ChecklistTemplate) -> ChecklistTemplate:
+        self.db.add(template)
+        self.db.commit()
+        self.db.refresh(template)
+        return template
+
+    def get_checklist_template_item(self, item_id: int) -> ChecklistTemplateItem | None:
+        return self.db.get(ChecklistTemplateItem, item_id)
+
+    def next_template_item_position(self, template_id: int) -> int:
+        template = self.get_checklist_template(template_id)
+        if not template or not template.items:
+            return 0
+        return max(item.position for item in template.items) + 1
 
     def list_store_names(self) -> list[str]:
         names: set[str] = set()

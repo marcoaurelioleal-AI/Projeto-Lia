@@ -3,9 +3,18 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from ..models import ChecklistTemplate, Manual, Store, User
+from ..models import ChecklistTemplate, ChecklistTemplateItem, Manual, Store, User
 from ..repositories.admin_repository import AdminRepository
-from ..schemas import StoreCreate, StoreUpdate, UserCreate, UserUpdate
+from ..schemas import (
+    ChecklistTemplateCreate,
+    ChecklistTemplateItemCreate,
+    ChecklistTemplateItemUpdate,
+    ChecklistTemplateUpdate,
+    StoreCreate,
+    StoreUpdate,
+    UserCreate,
+    UserUpdate,
+)
 from ..security import hash_password
 
 
@@ -84,6 +93,93 @@ class AdminService:
 
     def list_checklist_templates(self) -> list[ChecklistTemplate]:
         return self.repository.list_checklist_templates()
+
+    def create_checklist_template(self, payload: ChecklistTemplateCreate) -> ChecklistTemplate:
+        title = payload.title.strip()
+        if self.repository.get_checklist_template_by_title(title):
+            raise HTTPException(status_code=409, detail="Template de checklist ja cadastrado")
+        return self.repository.add_checklist_template(
+            ChecklistTemplate(
+                title=title,
+                category=payload.category.strip(),
+                store=payload.store.strip() or "Grupo Lia",
+                active=True,
+            )
+        )
+
+    def update_checklist_template(self, template_id: int, payload: ChecklistTemplateUpdate) -> ChecklistTemplate:
+        template = self.repository.get_checklist_template(template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template de checklist nao encontrado")
+
+        changes = payload.model_dump(exclude_unset=True)
+        if "title" in changes and changes["title"] is not None:
+            title = changes["title"].strip()
+            existing = self.repository.get_checklist_template_by_title(title)
+            if existing and existing.id != template.id:
+                raise HTTPException(status_code=409, detail="Template de checklist ja cadastrado")
+            template.title = title
+        if "category" in changes and changes["category"] is not None:
+            template.category = changes["category"].strip()
+        if "store" in changes and changes["store"] is not None:
+            template.store = changes["store"].strip() or "Grupo Lia"
+        if "active" in changes and changes["active"] is not None:
+            template.active = changes["active"]
+
+        self.repository.commit()
+        refreshed = self.repository.get_checklist_template(template_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Template de checklist nao encontrado")
+        return refreshed
+
+    def deactivate_checklist_template(self, template_id: int) -> ChecklistTemplate:
+        return self.update_checklist_template(template_id, ChecklistTemplateUpdate(active=False))
+
+    def create_checklist_template_item(
+        self, template_id: int, payload: ChecklistTemplateItemCreate
+    ) -> ChecklistTemplate:
+        template = self.repository.get_checklist_template(template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template de checklist nao encontrado")
+
+        template.items.append(
+            ChecklistTemplateItem(
+                section=payload.section.strip(),
+                text=payload.text.strip(),
+                position=self.repository.next_template_item_position(template_id),
+                active=True,
+            )
+        )
+        self.repository.commit()
+        refreshed = self.repository.get_checklist_template(template_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Template de checklist nao encontrado")
+        return refreshed
+
+    def update_checklist_template_item(
+        self, item_id: int, payload: ChecklistTemplateItemUpdate
+    ) -> ChecklistTemplate:
+        item = self.repository.get_checklist_template_item(item_id)
+        if not item:
+            raise HTTPException(status_code=404, detail="Item de template nao encontrado")
+
+        changes = payload.model_dump(exclude_unset=True)
+        if "section" in changes and changes["section"] is not None:
+            item.section = changes["section"].strip()
+        if "text" in changes and changes["text"] is not None:
+            item.text = changes["text"].strip()
+        if "active" in changes and changes["active"] is not None:
+            item.active = changes["active"]
+
+        template_id = item.template_id
+        self.repository.commit()
+        refreshed = self.repository.get_checklist_template(template_id)
+        if not refreshed:
+            raise HTTPException(status_code=404, detail="Template de checklist nao encontrado")
+        return refreshed
+
+    def deactivate_checklist_template_item(self, item_id: int) -> ChecklistTemplate:
+        return self.update_checklist_template_item(item_id, ChecklistTemplateItemUpdate(active=False))
 
     def list_manuals(self) -> list[Manual]:
         return self.repository.list_manuals()

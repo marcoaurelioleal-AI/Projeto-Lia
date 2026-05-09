@@ -6,6 +6,8 @@ import type {
   ChecklistEvidence,
   ChecklistRun,
   ChecklistTemplate,
+  ChecklistTemplateCreate,
+  ChecklistTemplateItemCreate,
   IncidentStatus,
   LoginResponse,
   Manual,
@@ -140,6 +142,40 @@ export const api = {
       method: 'DELETE'
     }),
   adminChecklistTemplates: () => request<ChecklistTemplate[]>('/admin/checklist-templates'),
+  createChecklistTemplate: (payload: ChecklistTemplateCreate) =>
+    request<ChecklistTemplate>('/admin/checklist-templates', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+  updateChecklistTemplate: (
+    templateId: number,
+    payload: Partial<Pick<ChecklistTemplate, 'title' | 'category' | 'store' | 'active'>>
+  ) =>
+    request<ChecklistTemplate>(`/admin/checklist-templates/${templateId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    }),
+  deactivateChecklistTemplate: (templateId: number) =>
+    request<ChecklistTemplate>(`/admin/checklist-templates/${templateId}`, {
+      method: 'DELETE'
+    }),
+  createChecklistTemplateItem: (templateId: number, payload: ChecklistTemplateItemCreate) =>
+    request<ChecklistTemplate>(`/admin/checklist-templates/${templateId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+  updateChecklistTemplateItem: (
+    itemId: number,
+    payload: Partial<Pick<ChecklistTemplate['items'][number], 'section' | 'text' | 'active'>>
+  ) =>
+    request<ChecklistTemplate>(`/admin/checklist-template-items/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    }),
+  deactivateChecklistTemplateItem: (itemId: number) =>
+    request<ChecklistTemplate>(`/admin/checklist-template-items/${itemId}`, {
+      method: 'DELETE'
+    }),
   adminManuals: () => request<Manual[]>('/admin/manuals'),
   incidents: (options: { status?: IncidentStatus | 'todas'; store?: string } = {}) =>
     request<OperationalIncident[]>(

@@ -7,6 +7,10 @@ from ..database import get_db
 from ..models import ChecklistTemplate, Manual, Store, User
 from ..schemas import (
     ChecklistTemplateRead,
+    ChecklistTemplateCreate,
+    ChecklistTemplateItemCreate,
+    ChecklistTemplateItemUpdate,
+    ChecklistTemplateUpdate,
     ManualRead,
     StoreCreate,
     StoreRead,
@@ -103,6 +107,63 @@ def list_checklist_templates(
     service: AdminService = Depends(get_admin_service),
 ) -> list[ChecklistTemplate]:
     return service.list_checklist_templates()
+
+
+@router.post("/checklist-templates", response_model=ChecklistTemplateRead)
+def create_checklist_template(
+    payload: ChecklistTemplateCreate,
+    _: User = Depends(require_admin_user),
+    service: AdminService = Depends(get_admin_service),
+) -> ChecklistTemplate:
+    return service.create_checklist_template(payload)
+
+
+@router.patch("/checklist-templates/{template_id}", response_model=ChecklistTemplateRead)
+def update_checklist_template(
+    template_id: int,
+    payload: ChecklistTemplateUpdate,
+    _: User = Depends(require_admin_user),
+    service: AdminService = Depends(get_admin_service),
+) -> ChecklistTemplate:
+    return service.update_checklist_template(template_id, payload)
+
+
+@router.delete("/checklist-templates/{template_id}", response_model=ChecklistTemplateRead)
+def deactivate_checklist_template(
+    template_id: int,
+    _: User = Depends(require_admin_user),
+    service: AdminService = Depends(get_admin_service),
+) -> ChecklistTemplate:
+    return service.deactivate_checklist_template(template_id)
+
+
+@router.post("/checklist-templates/{template_id}/items", response_model=ChecklistTemplateRead)
+def create_checklist_template_item(
+    template_id: int,
+    payload: ChecklistTemplateItemCreate,
+    _: User = Depends(require_admin_user),
+    service: AdminService = Depends(get_admin_service),
+) -> ChecklistTemplate:
+    return service.create_checklist_template_item(template_id, payload)
+
+
+@router.patch("/checklist-template-items/{item_id}", response_model=ChecklistTemplateRead)
+def update_checklist_template_item(
+    item_id: int,
+    payload: ChecklistTemplateItemUpdate,
+    _: User = Depends(require_admin_user),
+    service: AdminService = Depends(get_admin_service),
+) -> ChecklistTemplate:
+    return service.update_checklist_template_item(item_id, payload)
+
+
+@router.delete("/checklist-template-items/{item_id}", response_model=ChecklistTemplateRead)
+def deactivate_checklist_template_item(
+    item_id: int,
+    _: User = Depends(require_admin_user),
+    service: AdminService = Depends(get_admin_service),
+) -> ChecklistTemplate:
+    return service.deactivate_checklist_template_item(item_id)
 
 
 @router.get("/manuals", response_model=list[ManualRead])

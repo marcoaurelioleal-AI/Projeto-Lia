@@ -224,18 +224,21 @@ def seed_checklist_templates(db: Session) -> None:
     if db.scalar(select(ChecklistTemplate.id).limit(1)):
         return
     for template_data in CHECKLISTS_SEED:
-        template = ChecklistTemplate(title=template_data["title"], category=template_data["category"])
+        template = ChecklistTemplate(title=template_data["title"], category=template_data["category"], active=True)
         position = 0
         for section, items in template_data["items"].items():
             for item in items:
-                template.items.append(ChecklistTemplateItem(section=section, text=item, position=position))
+                template.items.append(ChecklistTemplateItem(section=section, text=item, position=position, active=True))
                 position += 1
         db.add(template)
 
 
 def ensure_runs_for_date(db: Session, run_date: date, store: str) -> list[ChecklistRun]:
     templates = db.scalars(
-        select(ChecklistTemplate).options(selectinload(ChecklistTemplate.items)).order_by(ChecklistTemplate.id)
+        select(ChecklistTemplate)
+        .where(ChecklistTemplate.active.is_(True))
+        .options(selectinload(ChecklistTemplate.items))
+        .order_by(ChecklistTemplate.id)
     ).all()
     runs: list[ChecklistRun] = []
 
@@ -252,6 +255,8 @@ def ensure_runs_for_date(db: Session, run_date: date, store: str) -> list[Checkl
         if not run:
             run = ChecklistRun(template_id=template.id, run_date=run_date, store=store)
             for item in template.items:
+                if not item.active:
+                    continue
                 run.items.append(ChecklistRunItem(template_item_id=item.id))
             db.add(run)
             db.flush()

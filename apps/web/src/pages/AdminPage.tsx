@@ -5,13 +5,33 @@ import { api } from '../api/client';
 import { EvidenceThumbnail } from '../components/EvidenceUpload';
 import { PageHeader } from '../components/PageHeader';
 import { useAuth } from '../contexts/useAuth';
-import type { Role, StoreOption, User, UserCreate } from '../types';
+import type {
+  ChecklistTemplate,
+  ChecklistTemplateCreate,
+  ChecklistTemplateItem,
+  ChecklistTemplateItemCreate,
+  Role,
+  StoreOption,
+  User,
+  UserCreate
+} from '../types';
 
 const emptyUser: UserCreate = {
   username: '',
   name: '',
   role: 'operacao',
   password: ''
+};
+
+const emptyTemplate: ChecklistTemplateCreate = {
+  title: '',
+  category: '',
+  store: 'Grupo Lia'
+};
+
+const emptyTemplateItem: ChecklistTemplateItemCreate = {
+  section: '',
+  text: ''
 };
 
 export function AdminPage() {
@@ -77,17 +97,12 @@ export function AdminPage() {
       </section>
 
       <section className="mt-5 grid gap-4 lg:grid-cols-2">
-        <div className="surface rounded-lg p-4">
-          <h3 className="text-lg font-black text-lia-burgundy">Templates e manuais</h3>
-          <div className="mt-3 grid gap-2">
-            <div className="rounded-lg bg-white px-3 py-2 text-sm text-lia-muted">
-              {templates.data?.length ?? 0} templates de checklist cadastrados.
-            </div>
-            <div className="rounded-lg bg-white px-3 py-2 text-sm text-lia-muted">
-              {manuals.data?.length ?? 0} manuais tecnicos cadastrados.
-            </div>
-          </div>
-        </div>
+        <TemplatesAdminSection
+          templates={templates.data ?? []}
+          stores={stores.data ?? []}
+          manualsCount={manuals.data?.length ?? 0}
+          loading={templates.isLoading}
+        />
 
         <div className="surface rounded-lg p-4">
           <h3 className="text-lg font-black text-lia-burgundy">Auditoria de evidencias</h3>
@@ -321,6 +336,261 @@ function StoreRow({
           onClick={() => onSave({ active: !store.active })}
         >
           {store.active ? 'Desativar' : 'Ativar'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TemplatesAdminSection({
+  templates,
+  stores,
+  manualsCount,
+  loading
+}: {
+  templates: ChecklistTemplate[];
+  stores: StoreOption[];
+  manualsCount: number;
+  loading: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<ChecklistTemplateCreate>(emptyTemplate);
+
+  const createTemplate = useMutation({
+    mutationFn: api.createChecklistTemplate,
+    onSuccess: () => {
+      setForm(emptyTemplate);
+      queryClient.invalidateQueries({ queryKey: ['admin-checklist-templates'] });
+    }
+  });
+
+  const updateTemplate = useMutation({
+    mutationFn: ({
+      templateId,
+      payload
+    }: {
+      templateId: number;
+      payload: Partial<Pick<ChecklistTemplate, 'title' | 'category' | 'store' | 'active'>>;
+    }) => api.updateChecklistTemplate(templateId, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-checklist-templates'] })
+  });
+
+  const createItem = useMutation({
+    mutationFn: ({ templateId, payload }: { templateId: number; payload: ChecklistTemplateItemCreate }) =>
+      api.createChecklistTemplateItem(templateId, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-checklist-templates'] })
+  });
+
+  const updateItem = useMutation({
+    mutationFn: ({
+      itemId,
+      payload
+    }: {
+      itemId: number;
+      payload: Partial<Pick<ChecklistTemplateItem, 'section' | 'text' | 'active'>>;
+    }) => api.updateChecklistTemplateItem(itemId, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-checklist-templates'] })
+  });
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    createTemplate.mutate(form);
+  }
+
+  return (
+    <div className="surface rounded-lg p-4">
+      <h3 className="text-lg font-black text-lia-burgundy">Templates de checklist</h3>
+      <p className="mt-1 text-sm text-lia-muted">{manualsCount} manuais tecnicos cadastrados para consulta.</p>
+
+      <form onSubmit={submit} className="mt-3 grid gap-3 rounded-lg bg-white p-3">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <input
+            className="focus-ring rounded-lg border border-lia-red/15 px-3 py-2 text-sm"
+            placeholder="Titulo"
+            value={form.title}
+            onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+            required
+          />
+          <input
+            className="focus-ring rounded-lg border border-lia-red/15 px-3 py-2 text-sm"
+            placeholder="Categoria"
+            value={form.category}
+            onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
+            required
+          />
+          <select
+            className="focus-ring rounded-lg border border-lia-red/15 px-3 py-2 text-sm"
+            value={form.store}
+            onChange={(event) => setForm((current) => ({ ...current, store: event.target.value }))}
+          >
+            <option>Grupo Lia</option>
+            {stores
+              .filter((store) => store.active && store.name !== 'Grupo Lia')
+              .map((store) => (
+                <option key={store.id}>{store.name}</option>
+              ))}
+          </select>
+        </div>
+        {createTemplate.error ? <p className="text-sm font-semibold text-lia-red">{createTemplate.error.message}</p> : null}
+        <button
+          className="focus-ring rounded-lg bg-lia-red px-3 py-2 text-sm font-bold text-white disabled:opacity-60"
+          disabled={createTemplate.isPending}
+        >
+          {createTemplate.isPending ? 'Criando...' : 'Criar template'}
+        </button>
+      </form>
+
+      <div className="mt-3 space-y-3">
+        {loading ? <p className="text-sm text-lia-muted">Carregando templates...</p> : null}
+        {templates.map((template) => (
+          <TemplateRow
+            key={template.id}
+            template={template}
+            stores={stores}
+            onSave={(payload) => updateTemplate.mutate({ templateId: template.id, payload })}
+            onCreateItem={(payload) => createItem.mutate({ templateId: template.id, payload })}
+            onSaveItem={(itemId, payload) => updateItem.mutate({ itemId, payload })}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TemplateRow({
+  template,
+  stores,
+  onSave,
+  onCreateItem,
+  onSaveItem
+}: {
+  template: ChecklistTemplate;
+  stores: StoreOption[];
+  onSave: (payload: Partial<Pick<ChecklistTemplate, 'title' | 'category' | 'store' | 'active'>>) => void;
+  onCreateItem: (payload: ChecklistTemplateItemCreate) => void;
+  onSaveItem: (itemId: number, payload: Partial<Pick<ChecklistTemplateItem, 'section' | 'text' | 'active'>>) => void;
+}) {
+  const [title, setTitle] = useState(template.title);
+  const [category, setCategory] = useState(template.category);
+  const [store, setStore] = useState(template.store);
+  const [itemForm, setItemForm] = useState<ChecklistTemplateItemCreate>(emptyTemplateItem);
+
+  function submitItem(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onCreateItem(itemForm);
+    setItemForm(emptyTemplateItem);
+  }
+
+  return (
+    <div className="rounded-lg bg-white p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          className="focus-ring min-w-0 flex-1 rounded-lg border border-lia-red/15 px-3 py-2 text-sm font-semibold text-lia-burgundy"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+        <input
+          className="focus-ring w-32 rounded-lg border border-lia-red/15 px-3 py-2 text-sm"
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+        />
+        <select
+          className="focus-ring rounded-lg border border-lia-red/15 px-3 py-2 text-sm"
+          value={store}
+          onChange={(event) => setStore(event.target.value)}
+        >
+          <option>Grupo Lia</option>
+          {stores
+            .filter((storeOption) => storeOption.active && storeOption.name !== 'Grupo Lia')
+            .map((storeOption) => (
+              <option key={storeOption.id}>{storeOption.name}</option>
+            ))}
+        </select>
+        <StatusPill active={template.active} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          className="focus-ring rounded-lg border border-lia-red/20 px-3 py-2 text-xs font-bold text-lia-burgundy"
+          onClick={() => onSave({ title, category, store })}
+        >
+          Salvar template
+        </button>
+        <button
+          className="focus-ring rounded-lg border border-lia-red/20 px-3 py-2 text-xs font-bold text-lia-burgundy"
+          onClick={() => onSave({ active: !template.active })}
+        >
+          {template.active ? 'Desativar' : 'Ativar'}
+        </button>
+      </div>
+
+      <form onSubmit={submitItem} className="mt-3 grid gap-2 rounded-lg bg-lia-cream/60 p-2 sm:grid-cols-[0.35fr_1fr_auto]">
+        <input
+          className="focus-ring rounded-lg border border-lia-red/15 px-3 py-2 text-sm"
+          placeholder="Secao"
+          value={itemForm.section}
+          onChange={(event) => setItemForm((current) => ({ ...current, section: event.target.value }))}
+          required
+        />
+        <input
+          className="focus-ring rounded-lg border border-lia-red/15 px-3 py-2 text-sm"
+          placeholder="Novo item do checklist"
+          value={itemForm.text}
+          onChange={(event) => setItemForm((current) => ({ ...current, text: event.target.value }))}
+          required
+        />
+        <button className="focus-ring rounded-lg bg-lia-burgundy px-3 py-2 text-xs font-bold text-white">
+          Adicionar
+        </button>
+      </form>
+
+      <div className="mt-3 space-y-2">
+        {template.items.map((item) => (
+          <TemplateItemRow key={item.id} item={item} onSave={(payload) => onSaveItem(item.id, payload)} />
+        ))}
+        {!template.items.length ? <p className="text-sm text-lia-muted">Nenhum item cadastrado neste template.</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function TemplateItemRow({
+  item,
+  onSave
+}: {
+  item: ChecklistTemplateItem;
+  onSave: (payload: Partial<Pick<ChecklistTemplateItem, 'section' | 'text' | 'active'>>) => void;
+}) {
+  const [section, setSection] = useState(item.section);
+  const [text, setText] = useState(item.text);
+
+  return (
+    <div className="rounded-lg border border-lia-red/10 bg-lia-cream/40 p-2">
+      <div className="grid gap-2 sm:grid-cols-[0.3fr_1fr_auto]">
+        <input
+          className="focus-ring rounded-lg border border-lia-red/15 px-3 py-2 text-xs"
+          value={section}
+          onChange={(event) => setSection(event.target.value)}
+        />
+        <input
+          className="focus-ring rounded-lg border border-lia-red/15 px-3 py-2 text-xs"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+        />
+        <StatusPill active={item.active} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button
+          className="focus-ring rounded-lg border border-lia-red/20 px-3 py-2 text-xs font-bold text-lia-burgundy"
+          onClick={() => onSave({ section, text })}
+        >
+          Salvar item
+        </button>
+        <button
+          className="focus-ring rounded-lg border border-lia-red/20 px-3 py-2 text-xs font-bold text-lia-burgundy"
+          onClick={() => onSave({ active: !item.active })}
+        >
+          {item.active ? 'Desativar' : 'Ativar'}
         </button>
       </div>
     </div>
