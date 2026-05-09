@@ -16,8 +16,22 @@ class UserRead(BaseModel):
     username: str
     name: str
     role: str
+    active: bool
 
     model_config = {"from_attributes": True}
+
+
+class UserCreate(BaseModel):
+    username: str = Field(min_length=3, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
+    name: str = Field(min_length=2, max_length=120)
+    role: Literal["admin", "operacao"] = "operacao"
+    password: str = Field(min_length=6, max_length=200)
+
+
+class UserUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=120)
+    role: Literal["admin", "operacao"] | None = None
+    active: bool | None = None
 
 
 class TokenResponse(BaseModel):
@@ -145,8 +159,21 @@ class ChecklistEvidenceRead(BaseModel):
     item_text: str | None = None
 
 
+class StoreCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+
+
+class StoreUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=80)
+    active: bool | None = None
+
+
 class StoreRead(BaseModel):
+    id: int
     name: str
+    active: bool
+
+    model_config = {"from_attributes": True}
 
 
 class ChecklistTemplateItemRead(BaseModel):

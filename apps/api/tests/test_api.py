@@ -107,3 +107,36 @@ def test_ai_requires_token() -> None:
     with TestClient(app) as client:
         response = client.post("/ai/chat", json={"messages": [{"role": "user", "content": "Oi"}]})
         assert response.status_code == 401
+
+
+def test_admin_can_manage_users_and_stores() -> None:
+    with TestClient(app) as client:
+        headers = auth_headers(client)
+
+        created_user = client.post(
+            "/admin/users",
+            headers=headers,
+            json={"username": "operador_teste", "name": "Operador Teste", "role": "operacao", "password": "senha123"},
+        )
+        assert created_user.status_code == 200
+        user_id = created_user.json()["id"]
+
+        promoted = client.patch(f"/admin/users/{user_id}", headers=headers, json={"role": "admin"})
+        assert promoted.status_code == 200
+        assert promoted.json()["role"] == "admin"
+
+        disabled_user = client.delete(f"/admin/users/{user_id}", headers=headers)
+        assert disabled_user.status_code == 200
+        assert disabled_user.json()["active"] is False
+
+        created_store = client.post("/admin/stores", headers=headers, json={"name": "Lia Teste"})
+        assert created_store.status_code == 200
+        store_id = created_store.json()["id"]
+
+        renamed = client.patch(f"/admin/stores/{store_id}", headers=headers, json={"name": "Lia Teste 2"})
+        assert renamed.status_code == 200
+        assert renamed.json()["name"] == "Lia Teste 2"
+
+        disabled_store = client.delete(f"/admin/stores/{store_id}", headers=headers)
+        assert disabled_store.status_code == 200
+        assert disabled_store.json()["active"] is False

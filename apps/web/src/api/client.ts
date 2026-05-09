@@ -13,7 +13,8 @@ import type {
   OperationalIncidentCreate,
   ReportSummary,
   StoreOption,
-  User
+  User,
+  UserCreate
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
@@ -109,7 +110,35 @@ export const api = {
   aiHistory: () => request<AiChatHistoryItem[]>('/ai/history'),
   aiStatus: () => request<AiStatus>('/ai/status'),
   adminUsers: () => request<User[]>('/admin/users'),
+  createAdminUser: (payload: UserCreate) =>
+    request<User>('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+  updateAdminUser: (userId: number, payload: Partial<Pick<User, 'name' | 'role' | 'active'>>) =>
+    request<User>(`/admin/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    }),
+  deactivateAdminUser: (userId: number) =>
+    request<User>(`/admin/users/${userId}`, {
+      method: 'DELETE'
+    }),
   adminStores: () => request<StoreOption[]>('/admin/stores'),
+  createAdminStore: (name: string) =>
+    request<StoreOption>('/admin/stores', {
+      method: 'POST',
+      body: JSON.stringify({ name })
+    }),
+  updateAdminStore: (storeId: number, payload: Partial<Pick<StoreOption, 'name' | 'active'>>) =>
+    request<StoreOption>(`/admin/stores/${storeId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    }),
+  deactivateAdminStore: (storeId: number) =>
+    request<StoreOption>(`/admin/stores/${storeId}`, {
+      method: 'DELETE'
+    }),
   adminChecklistTemplates: () => request<ChecklistTemplate[]>('/admin/checklist-templates'),
   adminManuals: () => request<Manual[]>('/admin/manuals'),
   incidents: (options: { status?: IncidentStatus | 'todas'; store?: string } = {}) =>

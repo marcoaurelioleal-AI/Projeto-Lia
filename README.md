@@ -18,6 +18,7 @@ Principais recursos:
 - Chatbot **Lia**, com respostas baseadas nos manuais internos.
 - Histórico resumido das conversas da Lia.
 - Painel administrativo inicial para gestão.
+- Gestão administrativa básica de usuários e lojas.
 - Ocorrências operacionais com status e severidade.
 - Upload protegido de fotos como evidências de checklist.
 - Relatórios semanais/mensais de checklists, pendências, ocorrências e evidências.
@@ -292,7 +293,13 @@ Essa camada foi criada para permitir evolução futura para RAG sem reescrever a
 | `GET` | `/ai/history` | Histórico resumido da Lia. |
 | `GET` | `/ai/status` | Diagnóstico seguro da configuração de IA. |
 | `GET` | `/admin/users` | Lista usuários para administradores. |
+| `POST` | `/admin/users` | Cria usuário. |
+| `PATCH` | `/admin/users/{user_id}` | Atualiza nome, papel ou status do usuário. |
+| `DELETE` | `/admin/users/{user_id}` | Desativa usuário sem remover histórico. |
 | `GET` | `/admin/stores` | Lista lojas derivadas dos dados atuais. |
+| `POST` | `/admin/stores` | Cria loja. |
+| `PATCH` | `/admin/stores/{store_id}` | Atualiza nome ou status da loja. |
+| `DELETE` | `/admin/stores/{store_id}` | Desativa loja sem remover histórico. |
 | `GET` | `/admin/checklist-templates` | Lista templates de checklist. |
 | `GET` | `/admin/manuals` | Lista manuais para administradores. |
 | `GET` | `/incidents` | Lista ocorrências operacionais. |
@@ -307,7 +314,7 @@ Essa camada foi criada para permitir evolução futura para RAG sem reescrever a
 
 ## Novas Áreas Operacionais
 
-- `/admin`: painel administrativo inicial com usuários, lojas, templates, manuais, ocorrências, relatórios e auditoria de evidências.
+- `/admin`: painel administrativo com criação/edição/desativação de usuários e lojas, além de templates, manuais, ocorrências, relatórios e auditoria de evidências.
 - `/incidents`: registro e acompanhamento de ocorrências reais do turno.
 - `/reports`: resumo semanal ou mensal para gestão.
 - Checklists: cada item agora aceita foto como evidência, com storage local protegido por autenticação.

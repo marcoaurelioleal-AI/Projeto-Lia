@@ -14,6 +14,7 @@ from .models import (
     Manual,
     ManualSection,
     ManualStep,
+    Store,
     User,
 )
 from .security import hash_password
@@ -173,6 +174,7 @@ CHECKLISTS_SEED = [
 
 def seed_database(db: Session) -> None:
     seed_admin(db)
+    seed_stores(db)
     seed_manuals(db)
     seed_checklist_templates(db)
     db.commit()
@@ -190,6 +192,12 @@ def seed_admin(db: Session) -> None:
             password_hash=hash_password(settings.default_admin_password),
         )
     )
+
+
+def seed_stores(db: Session) -> None:
+    for name in ("Grupo Lia", "Lia Burguer", "Lia Pizza", "Lia Salgados"):
+        if not db.scalar(select(Store.id).where(Store.name == name)):
+            db.add(Store(name=name, active=True))
 
 
 def seed_manuals(db: Session) -> None:

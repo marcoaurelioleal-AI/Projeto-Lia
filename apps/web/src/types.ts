@@ -5,6 +5,14 @@ export interface User {
   username: string;
   name: string;
   role: Role;
+  active: boolean;
+}
+
+export interface UserCreate {
+  username: string;
+  name: string;
+  role: Role;
+  password: string;
 }
 
 export interface LoginResponse {
@@ -60,7 +68,9 @@ export interface ChecklistRun {
 }
 
 export interface StoreOption {
+  id: number;
   name: string;
+  active: boolean;
 }
 
 export interface ChecklistTemplateItem {

@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from ..models import ChecklistRun, ChecklistTemplate, Manual, ManualSection, OperationalIncident, User
+from ..models import ChecklistRun, ChecklistTemplate, Manual, ManualSection, OperationalIncident, Store, User
 
 
 class AdminRepository:
@@ -11,7 +11,34 @@ class AdminRepository:
         self.db = db
 
     def list_users(self) -> list[User]:
-        return list(self.db.scalars(select(User).order_by(User.name)).all())
+        return list(self.db.scalars(select(User).order_by(User.active.desc(), User.name)).all())
+
+    def get_user(self, user_id: int) -> User | None:
+        return self.db.get(User, user_id)
+
+    def get_user_by_username(self, username: str) -> User | None:
+        return self.db.scalar(select(User).where(User.username == username))
+
+    def add_user(self, user: User) -> User:
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
+    def list_stores(self) -> list[Store]:
+        return list(self.db.scalars(select(Store).order_by(Store.active.desc(), Store.name)).all())
+
+    def get_store(self, store_id: int) -> Store | None:
+        return self.db.get(Store, store_id)
+
+    def get_store_by_name(self, name: str) -> Store | None:
+        return self.db.scalar(select(Store).where(Store.name == name))
+
+    def add_store(self, store: Store) -> Store:
+        self.db.add(store)
+        self.db.commit()
+        self.db.refresh(store)
+        return store
 
     def list_manuals(self) -> list[Manual]:
         return list(
@@ -41,3 +68,6 @@ class AdminRepository:
         if not names:
             names.update({"Grupo Lia", "Lia Burguer", "Lia Pizza", "Lia Salgados"})
         return sorted(names)
+
+    def commit(self) -> None:
+        self.db.commit()
