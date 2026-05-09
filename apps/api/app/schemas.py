@@ -153,6 +153,8 @@ IncidentCategory = Literal[
 ]
 IncidentSeverity = Literal["baixa", "media", "alta", "critica"]
 IncidentStatus = Literal["aberta", "em_andamento", "resolvida", "cancelada"]
+AiResponseMode = Literal["rapido", "detalhado", "treinamento"]
+AiMode = Literal["gemini", "offline", "error"]
 
 
 class OperationalIncidentCreate(BaseModel):
@@ -279,22 +281,25 @@ class ReportSummaryRead(BaseModel):
 
 class ChatMessage(BaseModel):
     role: str = Field(pattern="^(user|assistant)$")
-    content: str = Field(min_length=1, max_length=4000)
+    content: str = Field(min_length=1, max_length=2000)
 
 
 class ChatSource(BaseModel):
+    source_type: str = "manual"
     manual_id: int
     unit: str
     manual_title: str
+    title: str | None = None
     section_title: str | None = None
     excerpt: str
 
 
 class ChatRequest(BaseModel):
-    messages: list[ChatMessage] = Field(min_length=1, max_length=12)
+    messages: list[ChatMessage] = Field(min_length=1, max_length=10)
     store: str | None = Field(default=None, max_length=80)
     unit: str | None = Field(default=None, max_length=80)
     session_id: int | None = None
+    response_mode: AiResponseMode = "rapido"
 
 
 class ChatResponse(BaseModel):
@@ -303,6 +308,7 @@ class ChatResponse(BaseModel):
     session_id: int
     sources: list[ChatSource] = []
     needs_manager_confirmation: bool = False
+    response_mode: AiResponseMode = "rapido"
 
 
 class AiChatHistoryItem(BaseModel):
@@ -316,6 +322,20 @@ class AiChatHistoryItem(BaseModel):
     mode: str
     needs_manager_confirmation: bool
     created_at: datetime
+
+
+class AiInteractionRead(BaseModel):
+    id: int
+    user_id: int
+    user_name: str | None = None
+    question: str
+    answer: str
+    response_mode: str
+    ai_mode: str
+    sources: list[ChatSource] = []
+    created_at: datetime
+    error_message: str | None = None
+    latency_ms: int
 
 
 class HealthResponse(BaseModel):

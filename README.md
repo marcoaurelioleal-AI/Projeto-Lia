@@ -264,19 +264,24 @@ A Lia é a assistente operacional da Central LIA.
 Na versão atual, ela:
 
 - responde dúvidas operacionais;
-- usa os manuais internos como contexto;
+- usa RAG operacional simples para recuperar trechos relevantes dos manuais internos;
+- aceita modos de resposta: `rapido`, `detalhado` e `treinamento`;
 - mostra fontes usadas;
 - salva histórico resumido;
+- registra interações auditáveis com pergunta, resposta, modo, fontes e latência;
 - pede confirmação da gestão quando a base não é suficiente;
 - não executa ações no sistema.
 
 Camada de conhecimento:
 
 ```text
-apps/api/app/manual_knowledge.py
+apps/api/app/services/rag_service.py
+apps/api/app/services/ai_service.py
+apps/api/app/repositories/manual_repository.py
+apps/api/app/repositories/ai_repository.py
 ```
 
-Essa camada foi criada para permitir evolução futura para RAG sem reescrever a rota inteira.
+A primeira versão usa busca textual por relevância, sem vector database. A arquitetura ficou preparada para trocar o recuperador por embeddings/vector store futuramente sem reescrever a rota `/ai/chat`.
 
 ## Endpoints Principais
 
@@ -291,6 +296,7 @@ Essa camada foi criada para permitir evolução futura para RAG sem reescrever a
 | `PATCH` | `/checklists/{run_id}/closing-note` | Atualiza observação de fechamento. |
 | `POST` | `/ai/chat` | Conversa com a Lia. |
 | `GET` | `/ai/history` | Histórico resumido da Lia. |
+| `GET` | `/ai/interactions` | Histórico auditável das interações da IA para administradores. |
 | `GET` | `/ai/status` | Diagnóstico seguro da configuração de IA. |
 | `GET` | `/admin/users` | Lista usuários para administradores. |
 | `POST` | `/admin/users` | Cria usuário. |

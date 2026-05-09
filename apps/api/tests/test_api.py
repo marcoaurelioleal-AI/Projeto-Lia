@@ -11,7 +11,9 @@ os.environ["CHAVE_API"] = "sua_nova_chave_gemini"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from apps.api.app.database import SessionLocal  # noqa: E402
 from apps.api.app.main import app  # noqa: E402
+from apps.api.app.services.rag_service import RagService  # noqa: E402
 
 
 def auth_headers(client: TestClient) -> dict[str, str]:
@@ -50,6 +52,19 @@ def test_manuals_and_checklists() -> None:
         assert updated.json()["completed"] == 1
 
 
+def test_rag_retrieves_relevant_manual_context() -> None:
+    with TestClient(app):
+        db = SessionLocal()
+        try:
+            results = RagService(db).retrieve_context("temperatura do oleo para fritar salgados", limit=2)
+        finally:
+            db.close()
+
+    assert 0 < len(results) <= 2
+    assert results[0].chunk.unit == "Lia Salgados"
+    assert "170" in results[0].chunk.content or "oleo" in results[0].chunk.content.lower()
+
+
 def test_ai_offline_mode() -> None:
     with TestClient(app) as client:
         headers = auth_headers(client)
@@ -61,8 +76,10 @@ def test_ai_offline_mode() -> None:
         assert response.status_code == 200
         payload = response.json()
         assert payload["mode"] in {"offline", "error"}
+        assert payload["response_mode"] == "rapido"
         assert payload["session_id"]
         assert payload["sources"]
+        assert payload["sources"][0]["source_type"] == "manual"
         assert payload["sources"][0]["unit"] in {"Lia Burguer", "Lia Pizza", "Lia Salgados"}
 
 
@@ -89,6 +106,33 @@ def test_ai_logs_summarized_history() -> None:
         assert "validade" in items[0]["question"].lower()
 
 
+def test_ai_accepts_response_modes_and_records_interaction() -> None:
+    with TestClient(app) as client:
+        headers = auth_headers(client)
+        response = client.post(
+            "/ai/chat",
+            headers=headers,
+            json={
+                "messages": [{"role": "user", "content": "Como treinar alguem para fritar salgados?"}],
+                "unit": "Lia Salgados",
+                "response_mode": "treinamento",
+            },
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["response_mode"] == "treinamento"
+        assert payload["sources"]
+
+        interactions = client.get("/ai/interactions?response_mode=treinamento", headers=headers)
+        assert interactions.status_code == 200
+        items = interactions.json()
+        assert items
+        assert items[0]["response_mode"] == "treinamento"
+        assert items[0]["ai_mode"] in {"offline", "gemini", "error"}
+        assert items[0]["sources"]
+        assert items[0]["latency_ms"] >= 0
+
+
 def test_ai_unknown_question_requires_manager_confirmation() -> None:
     with TestClient(app) as client:
         headers = auth_headers(client)
@@ -101,6 +145,18 @@ def test_ai_unknown_question_requires_manager_confirmation() -> None:
         payload = response.json()
         assert payload["needs_manager_confirmation"] is True
         assert payload["sources"] == []
+
+
+def test_ai_rejects_blank_question() -> None:
+    with TestClient(app) as client:
+        headers = auth_headers(client)
+        response = client.post(
+            "/ai/chat",
+            headers=headers,
+            json={"messages": [{"role": "user", "content": "   "}]},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Pergunta da IA nao pode ser vazia"
 
 
 def test_ai_requires_token() -> None:

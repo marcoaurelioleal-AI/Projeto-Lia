@@ -191,20 +191,26 @@ export interface ChatMessage {
   content: string;
 }
 
+export type AiResponseMode = 'rapido' | 'detalhado' | 'treinamento';
+export type AiMode = 'offline' | 'gemini' | 'error';
+
 export interface ChatSource {
+  source_type: string;
   manual_id: number;
   unit: string;
   manual_title: string;
+  title: string | null;
   section_title: string | null;
   excerpt: string;
 }
 
 export interface ChatResponse {
   reply: string;
-  mode: 'offline' | 'gemini' | 'error';
+  mode: AiMode;
   session_id: number;
   sources: ChatSource[];
   needs_manager_confirmation: boolean;
+  response_mode: AiResponseMode;
 }
 
 export interface AiStatus {
@@ -222,7 +228,21 @@ export interface AiChatHistoryItem {
   question: string;
   answer_summary: string;
   sources: ChatSource[];
-  mode: 'offline' | 'gemini' | 'error';
+  mode: AiMode;
   needs_manager_confirmation: boolean;
   created_at: string;
+}
+
+export interface AiInteraction {
+  id: number;
+  user_id: number;
+  user_name: string | null;
+  question: string;
+  answer: string;
+  response_mode: AiResponseMode;
+  ai_mode: AiMode;
+  sources: ChatSource[];
+  created_at: string;
+  error_message: string | null;
+  latency_ms: number;
 }

@@ -196,3 +196,19 @@ class AiChatLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     session: Mapped[AiChatSession] = relationship(back_populates="logs")
     user: Mapped[User] = relationship()
+
+
+class AiInteraction(Base):
+    __tablename__ = "ai_interactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text)
+    response_mode: Mapped[str] = mapped_column(String(30), index=True)
+    ai_mode: Mapped[str] = mapped_column(String(30), index=True)
+    sources_json: Mapped[list[dict[str, str | int | None]]] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
+    error_message: Mapped[str] = mapped_column(Text, nullable=True)
+    latency_ms: Mapped[int] = mapped_column(Integer, default=0)
+    user: Mapped[User] = relationship()

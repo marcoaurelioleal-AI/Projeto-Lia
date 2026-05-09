@@ -1,5 +1,7 @@
 import type {
   AiChatHistoryItem,
+  AiInteraction,
+  AiResponseMode,
   AiStatus,
   ChatMessage,
   ChatResponse,
@@ -104,17 +106,22 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ closing_note: closingNote })
     }),
-  chat: (messages: ChatMessage[], options: { store?: string; unit?: string; sessionId?: number | null } = {}) =>
+  chat: (
+    messages: ChatMessage[],
+    options: { store?: string; unit?: string; sessionId?: number | null; responseMode?: AiResponseMode } = {}
+  ) =>
     request<ChatResponse>('/ai/chat', {
       method: 'POST',
       body: JSON.stringify({
         messages,
         store: options.store,
         unit: options.unit || undefined,
-        session_id: options.sessionId ?? undefined
+        session_id: options.sessionId ?? undefined,
+        response_mode: options.responseMode ?? 'rapido'
       })
     }),
   aiHistory: () => request<AiChatHistoryItem[]>('/ai/history'),
+  aiInteractions: () => request<AiInteraction[]>('/ai/interactions'),
   aiStatus: () => request<AiStatus>('/ai/status'),
   adminUsers: () => request<User[]>('/admin/users'),
   createAdminUser: (payload: UserCreate) =>

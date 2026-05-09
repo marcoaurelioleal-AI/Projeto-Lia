@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, BookOpen, Camera, ClipboardList, FileText, Store, Users } from 'lucide-react';
+import { AlertTriangle, BookOpen, Bot, Camera, ClipboardList, FileText, Store, Users } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { api } from '../api/client';
 import { EvidenceThumbnail } from '../components/EvidenceUpload';
 import { PageHeader } from '../components/PageHeader';
 import { useAuth } from '../contexts/useAuth';
 import type {
+  AiInteraction,
   ChecklistTemplate,
   ChecklistTemplateCreate,
   ChecklistTemplateItem,
@@ -71,6 +72,7 @@ export function AdminPage() {
   const manuals = useQuery({ queryKey: ['admin-manuals'], queryFn: api.adminManuals, enabled: isAdmin });
   const incidents = useQuery({ queryKey: ['admin-incidents'], queryFn: () => api.incidents(), enabled: isAdmin });
   const evidences = useQuery({ queryKey: ['admin-evidences'], queryFn: () => api.evidenceAudit(), enabled: isAdmin });
+  const aiInteractions = useQuery({ queryKey: ['admin-ai-interactions'], queryFn: api.aiInteractions, enabled: isAdmin });
 
   if (!isAdmin) {
     return (
@@ -105,6 +107,12 @@ export function AdminPage() {
           loading={templates.isLoading}
         />
         <AdminCard title="Manuais" value={manuals.data?.length ?? 0} icon={BookOpen} loading={manuals.isLoading} />
+        <AdminCard
+          title="Historico IA"
+          value={aiInteractions.data?.length ?? 0}
+          icon={Bot}
+          loading={aiInteractions.isLoading}
+        />
         <AdminCard
           title="Ocorrencias"
           value={incidents.data?.length ?? 0}
@@ -152,6 +160,10 @@ export function AdminPage() {
       </section>
 
       <section className="mt-5">
+        <AiInteractionsAdminSection interactions={aiInteractions.data ?? []} loading={aiInteractions.isLoading} />
+      </section>
+
+      <section className="mt-5">
         <ManualsAdminSection manuals={manuals.data ?? []} stores={stores.data ?? []} loading={manuals.isLoading} />
       </section>
 
@@ -165,6 +177,59 @@ export function AdminPage() {
         </div>
       </section>
     </>
+  );
+}
+
+function AiInteractionsAdminSection({
+  interactions,
+  loading
+}: {
+  interactions: AiInteraction[];
+  loading: boolean;
+}) {
+  return (
+    <div className="surface rounded-lg p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-black text-lia-burgundy">Historico da IA</h3>
+          <p className="mt-1 text-sm text-lia-muted">Ultimas perguntas feitas para a Lia, com modo e fontes usadas.</p>
+        </div>
+        <span className="rounded-lg bg-lia-red/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-lia-red">
+          Auditoria
+        </span>
+      </div>
+
+      {loading ? <p className="mt-3 text-sm text-lia-muted">Carregando historico da IA...</p> : null}
+
+      {interactions.length ? (
+        <div className="mt-3 grid gap-3 xl:grid-cols-2">
+          {interactions.slice(0, 8).map((interaction) => (
+            <article key={interaction.id} className="rounded-lg bg-white p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-black text-lia-burgundy">{interaction.user_name ?? `Usuario #${interaction.user_id}`}</p>
+                <span className="rounded-lg bg-lia-cream px-2 py-1 text-xs font-bold text-lia-muted">
+                  {interaction.response_mode} / {interaction.ai_mode}
+                </span>
+              </div>
+              <p className="mt-2 line-clamp-2 text-sm font-semibold text-lia-ink">{interaction.question}</p>
+              <p className="mt-2 line-clamp-2 text-xs leading-5 text-lia-muted">{interaction.answer}</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-lia-muted">
+                <span>{new Date(interaction.created_at).toLocaleString('pt-BR')}</span>
+                <span>{interaction.latency_ms} ms</span>
+                <span>{interaction.sources.length} fonte(s)</span>
+              </div>
+              {interaction.error_message ? (
+                <p className="mt-2 rounded-lg bg-lia-red/10 px-2 py-1 text-xs font-bold text-lia-red">
+                  {interaction.error_message}
+                </p>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-lia-muted">Nenhuma interacao com a Lia registrada ainda.</p>
+      )}
+    </div>
   );
 }
 

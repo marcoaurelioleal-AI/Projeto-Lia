@@ -4,7 +4,7 @@ import { FormEvent, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { PageHeader } from '../components/PageHeader';
 import { useAuth } from '../contexts/useAuth';
-import type { ChatMessage, ChatSource } from '../types';
+import type { AiResponseMode, ChatMessage, ChatSource } from '../types';
 
 type UiMessage = ChatMessage & {
   mode?: 'offline' | 'gemini' | 'error';
@@ -19,6 +19,7 @@ export function AssistantPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [unit, setUnit] = useState('');
+  const [responseMode, setResponseMode] = useState<AiResponseMode>('rapido');
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [messages, setMessages] = useState<UiMessage[]>([
     {
@@ -46,7 +47,8 @@ export function AssistantPage() {
       api.chat(historyMessages, {
         store: STORE,
         unit,
-        sessionId
+        sessionId,
+        responseMode
       }),
     onSuccess: (response) => {
       setSessionId(response.session_id);
@@ -125,7 +127,7 @@ export function AssistantPage() {
             </button>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-[220px_1fr]">
+          <div className="mt-4 grid gap-3 md:grid-cols-[220px_220px_1fr]">
             <label className="grid gap-1 text-sm font-bold text-lia-burgundy">
               Unidade
               <select
@@ -139,6 +141,18 @@ export function AssistantPage() {
                     {unitName}
                   </option>
                 ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm font-bold text-lia-burgundy">
+              Modo
+              <select
+                value={responseMode}
+                onChange={(event) => setResponseMode(event.target.value as AiResponseMode)}
+                className="focus-ring rounded-lg border border-lia-red/15 bg-white px-3 py-3 font-semibold"
+              >
+                <option value="rapido">Rapido</option>
+                <option value="detalhado">Detalhado</option>
+                <option value="treinamento">Treinamento</option>
               </select>
             </label>
             <div className="rounded-lg bg-white px-3 py-3 text-sm leading-6 text-lia-muted">
@@ -251,12 +265,12 @@ function ChatBubble({ message }: { message: UiMessage }) {
 function Sources({ sources }: { sources: ChatSource[] }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-lia-muted">Fontes usadas</p>
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-lia-muted">Fontes consultadas</p>
       <div className="grid gap-2">
         {sources.map((source, index) => (
           <div key={`${source.manual_id}-${source.section_title}-${index}`} className="rounded-lg bg-lia-cream px-3 py-2">
             <p className="text-sm font-black text-lia-burgundy">
-              {source.unit} - {source.manual_title}
+              {source.unit} - {source.title ?? source.manual_title}
             </p>
             {source.section_title ? <p className="text-xs font-bold text-lia-red">{source.section_title}</p> : null}
             <p className="mt-1 line-clamp-2 text-xs leading-5 text-lia-muted">{source.excerpt}</p>
