@@ -59,6 +59,90 @@ export interface ChecklistRun {
   items: ChecklistItem[];
 }
 
+export interface StoreOption {
+  name: string;
+}
+
+export interface ChecklistTemplateItem {
+  id: number;
+  section: string;
+  text: string;
+  position: number;
+}
+
+export interface ChecklistTemplate {
+  id: number;
+  title: string;
+  category: string;
+  store: string;
+  items: ChecklistTemplateItem[];
+}
+
+export type IncidentCategory =
+  | 'estoque'
+  | 'limpeza'
+  | 'equipamento'
+  | 'atendimento'
+  | 'delivery'
+  | 'caixa'
+  | 'validade'
+  | 'outro';
+
+export type IncidentSeverity = 'baixa' | 'media' | 'alta' | 'critica';
+export type IncidentStatus = 'aberta' | 'em_andamento' | 'resolvida' | 'cancelada';
+
+export interface OperationalIncident {
+  id: number;
+  store: string;
+  category: IncidentCategory;
+  severity: IncidentSeverity;
+  description: string;
+  status: IncidentStatus;
+  created_by: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+}
+
+export interface OperationalIncidentCreate {
+  store: string;
+  category: IncidentCategory;
+  severity: IncidentSeverity;
+  description: string;
+}
+
+export interface ChecklistEvidence {
+  id: number;
+  checklist_run_item_id: number;
+  uploaded_by: string | null;
+  storage_provider: string;
+  file_url: string | null;
+  original_filename: string;
+  content_type: string;
+  file_size: number;
+  created_at: string;
+  run_id: number | null;
+  store: string | null;
+  checklist_title: string | null;
+  item_text: string | null;
+}
+
+export interface ReportSummary {
+  start_date: string;
+  end_date: string;
+  store: string | null;
+  total_checklists: number;
+  total_items: number;
+  completed_items: number;
+  completion_percent: number;
+  pending_tasks: number;
+  total_incidents: number;
+  incidents_by_status: Record<string, number>;
+  incidents_by_severity: Record<string, number>;
+  incidents_by_category: Record<string, number>;
+  evidences_uploaded: number;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;

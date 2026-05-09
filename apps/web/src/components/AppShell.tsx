@@ -1,11 +1,13 @@
-import { BookOpen, Bot, CheckSquare, Home, LogOut, Menu } from 'lucide-react';
+import { AlertTriangle, BarChart3, BookOpen, Bot, CheckSquare, Home, LogOut, Menu, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 
-const navItems = [
+const baseNavItems = [
   { to: '/', label: 'Dashboard', icon: Home },
   { to: '/checklists', label: 'Tarefas', icon: CheckSquare },
+  { to: '/incidents', label: 'Ocorrencias', icon: AlertTriangle },
+  { to: '/reports', label: 'Relatorios', icon: BarChart3 },
   { to: '/manuals', label: 'Manuais', icon: BookOpen },
   { to: '/assistant', label: 'Lia', icon: Bot }
 ];
@@ -13,6 +15,7 @@ const navItems = [
 export function AppShell() {
   const [open, setOpen] = useState(false);
   const { logout, user } = useAuth();
+  const navItems = user?.role === 'admin' ? [...baseNavItems, { to: '/admin', label: 'Admin', icon: Shield }] : baseNavItems;
 
   return (
     <div className="min-h-screen pb-20 text-lia-ink md:pb-0">
@@ -64,7 +67,7 @@ export function AppShell() {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-lia-red/10 bg-lia-cream/95 px-2 py-2 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex gap-1 overflow-x-auto border-t border-lia-red/10 bg-lia-cream/95 px-2 py-2 backdrop-blur md:hidden">
         {navItems.map((item) => (
           <MobileNavItem key={item.to} {...item} />
         ))}
@@ -108,7 +111,7 @@ function MobileNavItem({ to, label, icon: Icon }: { to: string; label: string; i
       end={to === '/'}
       className={({ isActive }) =>
         [
-          'flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-semibold',
+          'flex min-h-12 min-w-[4.75rem] flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-semibold',
           isActive ? 'bg-lia-red text-white' : 'text-lia-burgundy'
         ].join(' ')
       }

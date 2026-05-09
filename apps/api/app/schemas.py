@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -84,6 +85,103 @@ class ChecklistItemUpdate(BaseModel):
 
 class ClosingNoteUpdate(BaseModel):
     closing_note: str = Field(max_length=1500)
+
+
+IncidentCategory = Literal[
+    "estoque",
+    "limpeza",
+    "equipamento",
+    "atendimento",
+    "delivery",
+    "caixa",
+    "validade",
+    "outro",
+]
+IncidentSeverity = Literal["baixa", "media", "alta", "critica"]
+IncidentStatus = Literal["aberta", "em_andamento", "resolvida", "cancelada"]
+
+
+class OperationalIncidentCreate(BaseModel):
+    store: str = Field(default="Grupo Lia", min_length=1, max_length=80)
+    category: IncidentCategory
+    severity: IncidentSeverity
+    description: str = Field(min_length=1, max_length=3000)
+
+
+class OperationalIncidentUpdate(BaseModel):
+    store: str | None = Field(default=None, min_length=1, max_length=80)
+    category: IncidentCategory | None = None
+    severity: IncidentSeverity | None = None
+    description: str | None = Field(default=None, min_length=1, max_length=3000)
+    status: IncidentStatus | None = None
+
+
+class OperationalIncidentRead(BaseModel):
+    id: int
+    store: str
+    category: str
+    severity: str
+    description: str
+    status: str
+    created_by: str | None = None
+    created_at: datetime
+    resolved_at: datetime | None = None
+    resolved_by: str | None = None
+
+
+class ChecklistEvidenceRead(BaseModel):
+    id: int
+    checklist_run_item_id: int
+    uploaded_by: str | None = None
+    storage_provider: str
+    file_url: str | None = None
+    original_filename: str
+    content_type: str
+    file_size: int
+    created_at: datetime
+    run_id: int | None = None
+    store: str | None = None
+    checklist_title: str | None = None
+    item_text: str | None = None
+
+
+class StoreRead(BaseModel):
+    name: str
+
+
+class ChecklistTemplateItemRead(BaseModel):
+    id: int
+    section: str
+    text: str
+    position: int
+
+    model_config = {"from_attributes": True}
+
+
+class ChecklistTemplateRead(BaseModel):
+    id: int
+    title: str
+    category: str
+    store: str
+    items: list[ChecklistTemplateItemRead] = []
+
+    model_config = {"from_attributes": True}
+
+
+class ReportSummaryRead(BaseModel):
+    start_date: date
+    end_date: date
+    store: str | None = None
+    total_checklists: int
+    total_items: int
+    completed_items: int
+    completion_percent: int
+    pending_tasks: int
+    total_incidents: int
+    incidents_by_status: dict[str, int]
+    incidents_by_severity: dict[str, int]
+    incidents_by_category: dict[str, int]
+    evidences_uploaded: int
 
 
 class ChatMessage(BaseModel):

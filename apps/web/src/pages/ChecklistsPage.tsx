@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Save } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '../api/client';
+import { EvidenceUpload } from '../components/EvidenceUpload';
 import { PageHeader } from '../components/PageHeader';
 import { ProgressBar } from '../components/ProgressBar';
 
@@ -89,19 +90,24 @@ export function ChecklistsPage() {
                     <h4 className="mb-2 font-bold text-lia-burgundy">{section}</h4>
                     <div className="space-y-2">
                       {items.map((item) => (
-                        <label
+                        <div
                           key={item.id}
-                          className="flex gap-3 rounded-lg border border-lia-red/10 bg-white px-3 py-3 text-sm leading-5"
+                          className="rounded-lg border border-lia-red/10 bg-white px-3 py-3 text-sm leading-5"
                         >
-                          <input
-                            type="checkbox"
-                            checked={item.done}
-                            disabled={toggle.isPending}
-                            onChange={(event) => toggle.mutate({ runId: run.id, itemId: item.id, done: event.target.checked })}
-                            className="mt-1 h-4 w-4 accent-lia-red"
-                          />
-                          <span className={item.done ? 'text-lia-muted line-through' : 'text-lia-ink'}>{item.text}</span>
-                        </label>
+                          <label className="flex gap-3">
+                            <input
+                              type="checkbox"
+                              checked={item.done}
+                              disabled={toggle.isPending}
+                              onChange={(event) =>
+                                toggle.mutate({ runId: run.id, itemId: item.id, done: event.target.checked })
+                              }
+                              className="mt-1 h-4 w-4 accent-lia-red"
+                            />
+                            <span className={item.done ? 'text-lia-muted line-through' : 'text-lia-ink'}>{item.text}</span>
+                          </label>
+                          <EvidenceUpload itemId={item.id} />
+                        </div>
                       ))}
                     </div>
                   </div>

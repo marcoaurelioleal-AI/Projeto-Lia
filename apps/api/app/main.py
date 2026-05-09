@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .database import Base, SessionLocal, engine
-from .routers import ai, auth, checklists, manuals
+from .routers import admin, ai, auth, checklists, evidences, incidents, manuals, reports
 from .schemas import HealthResponse
 from .seed import seed_database
 
@@ -44,6 +44,10 @@ app.include_router(auth.router)
 app.include_router(manuals.router)
 app.include_router(checklists.router)
 app.include_router(ai.router)
+app.include_router(admin.router)
+app.include_router(incidents.router)
+app.include_router(evidences.router)
+app.include_router(reports.router)
 
 STATIC_DIR = Path(__file__).resolve().parents[3] / "apps" / "web" / "dist"
 if STATIC_DIR.exists():

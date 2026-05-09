@@ -3,9 +3,16 @@ import type {
   AiStatus,
   ChatMessage,
   ChatResponse,
+  ChecklistEvidence,
   ChecklistRun,
+  ChecklistTemplate,
+  IncidentStatus,
   LoginResponse,
   Manual,
+  OperationalIncident,
+  OperationalIncidentCreate,
+  ReportSummary,
+  StoreOption,
   User
 } from '../types';
 
@@ -26,13 +33,17 @@ export function clearToken() {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
+  const headers = new Headers(options.headers);
+  if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers
-    }
+    headers
   });
 
   if (!response.ok) {
@@ -41,6 +52,28 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+function withParams(path: string, params: Record<string, string | number | null | undefined>) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      search.set(key, String(value));
+    }
+  });
+  const query = search.toString();
+  return query ? `${path}?${query}` : path;
+}
+
+export async function fetchEvidenceBlob(path: string): Promise<Blob> {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+  });
+  if (!response.ok) {
+    throw new Error('Nao foi possivel carregar a evidencia.');
+  }
+  return response.blob();
 }
 
 export const api = {
@@ -74,5 +107,53 @@ export const api = {
       })
     }),
   aiHistory: () => request<AiChatHistoryItem[]>('/ai/history'),
-  aiStatus: () => request<AiStatus>('/ai/status')
+  aiStatus: () => request<AiStatus>('/ai/status'),
+  adminUsers: () => request<User[]>('/admin/users'),
+  adminStores: () => request<StoreOption[]>('/admin/stores'),
+  adminChecklistTemplates: () => request<ChecklistTemplate[]>('/admin/checklist-templates'),
+  adminManuals: () => request<Manual[]>('/admin/manuals'),
+  incidents: (options: { status?: IncidentStatus | 'todas'; store?: string } = {}) =>
+    request<OperationalIncident[]>(
+      withParams('/incidents', {
+        status: options.status === 'todas' ? undefined : options.status,
+        store: options.store
+      })
+    ),
+  createIncident: (payload: OperationalIncidentCreate) =>
+    request<OperationalIncident>('/incidents', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+  updateIncident: (incidentId: number, payload: Partial<OperationalIncidentCreate> & { status?: IncidentStatus }) =>
+    request<OperationalIncident>(`/incidents/${incidentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    }),
+  reportSummary: (options: { startDate: string; endDate: string; store?: string }) =>
+    request<ReportSummary>(
+      withParams('/reports/summary', {
+        start_date: options.startDate,
+        end_date: options.endDate,
+        store: options.store
+      })
+    ),
+  uploadChecklistEvidence: (itemId: number, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<ChecklistEvidence>(`/checklists/items/${itemId}/evidences`, {
+      method: 'POST',
+      body: form
+    });
+  },
+  checklistItemEvidences: (itemId: number) =>
+    request<ChecklistEvidence[]>(`/checklists/items/${itemId}/evidences`),
+  checklistRunEvidences: (runId: number) => request<ChecklistEvidence[]>(`/checklists/${runId}/evidences`),
+  evidenceAudit: (options: { store?: string; startDate?: string; endDate?: string } = {}) =>
+    request<ChecklistEvidence[]>(
+      withParams('/evidences', {
+        store: options.store,
+        start_date: options.startDate,
+        end_date: options.endDate
+      })
+    )
 };

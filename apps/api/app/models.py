@@ -113,6 +113,43 @@ class ChecklistRunItem(Base):
     run: Mapped[ChecklistRun] = relationship(back_populates="items")
     template_item: Mapped[ChecklistTemplateItem] = relationship()
     completed_by: Mapped[User] = relationship()
+    evidences: Mapped[list["ChecklistEvidence"]] = relationship(
+        back_populates="checklist_run_item", cascade="all, delete-orphan", order_by="ChecklistEvidence.created_at"
+    )
+
+
+class OperationalIncident(Base):
+    __tablename__ = "operational_incidents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    store: Mapped[str] = mapped_column(String(80), default="Grupo Lia", index=True)
+    category: Mapped[str] = mapped_column(String(30), index=True)
+    severity: Mapped[str] = mapped_column(String(30), index=True)
+    description: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30), default="aberta", index=True)
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    resolved_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    resolved_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_by: Mapped[User] = relationship(foreign_keys=[created_by_user_id])
+    resolved_by: Mapped[User] = relationship(foreign_keys=[resolved_by_user_id])
+
+
+class ChecklistEvidence(Base):
+    __tablename__ = "checklist_evidences"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    checklist_run_item_id: Mapped[int] = mapped_column(ForeignKey("checklist_run_items.id"), index=True)
+    uploaded_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    storage_provider: Mapped[str] = mapped_column(String(30), default="local")
+    file_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    file_path: Mapped[str] = mapped_column(String(500))
+    original_filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(120))
+    file_size: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    checklist_run_item: Mapped[ChecklistRunItem] = relationship(back_populates="evidences")
+    uploaded_by: Mapped[User] = relationship()
 
 
 class AiChatSession(Base):
