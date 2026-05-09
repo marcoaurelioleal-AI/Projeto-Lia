@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   workflow_dispatch: {}
 
+concurrency:
+  group: render-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -32,21 +36,27 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set lowercase GHCR image tag
-        id: image
-        run: echo "tag=ghcr.io/${GITHUB_REPOSITORY,,}:latest" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "IMAGE_SHA=${GITHUB_SHA::12}" >> "$GITHUB_ENV"
 
       - name: Build and push image to GHCR
         uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64
           push: true
-          tags: ${{ steps.image.outputs.tag }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_SHA }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Trigger Render deploy (optional)
         if: env.RENDER_API_KEY != '' && env.RENDER_SERVICE_ID != ''
         run: |
-          echo "Triggering Render deploy for service ${RENDER_SERVICE_ID}"
-          curl -X POST \
+          echo "Triggering Render deploy"
+          curl --fail-with-body --show-error --silent --retry 3 --retry-delay 5 -X POST \
             -H "Authorization: Bearer ${RENDER_API_KEY}" \
             -H "Content-Type: application/json" \
             -d '{"clearCache": true}' \
