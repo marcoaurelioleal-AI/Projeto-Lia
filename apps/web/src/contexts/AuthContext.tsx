@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api, clearToken, getToken, setToken } from '../api/client';
+import { api, clearToken, setToken } from '../api/client';
 import type { User } from '../types';
 import { AuthContext, type AuthContextValue } from './AuthContextBase';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(() => Boolean(getToken()));
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!getToken()) {
-      return;
-    }
     api
       .me()
-      .then(setUser)
+      .then((currentUser) => {
+        setToken('cookie');
+        setUser(currentUser);
+      })
       .catch(() => {
         clearToken();
         setUser(null);
@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(response.user);
       },
       logout: () => {
+        void api.logout();
         clearToken();
         setUser(null);
       }

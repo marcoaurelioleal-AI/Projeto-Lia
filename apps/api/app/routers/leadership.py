@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -13,7 +13,13 @@ from ..schemas import (
     LeadershipTokenResponse,
     LoginRequest,
 )
-from ..security import create_leadership_access_token, get_current_leadership, verify_leadership_credentials
+from ..security import (
+    clear_session_cookie,
+    create_leadership_access_token,
+    get_current_leadership,
+    set_session_cookie,
+    verify_leadership_credentials,
+)
 from ..services.leadership_service import LeadershipService
 
 router = APIRouter(prefix="/leadership", tags=["leadership"])
@@ -24,10 +30,18 @@ def get_leadership_service(db: Session = Depends(get_db)) -> LeadershipService:
 
 
 @router.post("/login", response_model=LeadershipTokenResponse)
-def leadership_login(payload: LoginRequest) -> LeadershipTokenResponse:
+def leadership_login(payload: LoginRequest, response: Response) -> LeadershipTokenResponse:
     if not verify_leadership_credentials(payload.username, payload.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario ou senha invalidos")
-    return LeadershipTokenResponse(access_token=create_leadership_access_token())
+    token = create_leadership_access_token()
+    set_session_cookie(response, token, leadership=True)
+    return LeadershipTokenResponse(access_token=token)
+
+
+@router.post("/logout")
+def leadership_logout(response: Response) -> dict[str, str]:
+    clear_session_cookie(response, leadership=True)
+    return {"status": "ok"}
 
 
 @router.get("/me")

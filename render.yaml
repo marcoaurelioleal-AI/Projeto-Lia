@@ -1,17 +1,25 @@
 services:
   - type: web
-    name: projeto-lia
-    env: docker
+    name: projeto-lia-v2
+    runtime: docker
     plan: free
     healthCheckPath: /health
     autoDeploy: true
     envVars:
       - key: DATABASE_URL
-        value: sqlite:////app/data/lia.db
+        fromDatabase:
+          name: projeto-lia-db
+          property: connectionString
       - key: AUTO_CREATE_TABLES
         value: "false"
+      - key: APP_ENV
+        value: production
       - key: JWT_SECRET
         generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SESSION_COOKIE_SAMESITE
+        value: lax
       - key: LIA_ADMIN_USER
         value: admin
       - key: LIA_ADMIN_PASSWORD
@@ -25,4 +33,9 @@ services:
       - key: MODELO_GEMINI
         value: gemini-2.5-flash
       - key: FRONTEND_ORIGINS
-        value: https://projeto-lia.onrender.com
+        value: https://projeto-lia-v2.onrender.com
+
+databases:
+  - name: projeto-lia-db
+    plan: free
+    databaseName: projeto_lia

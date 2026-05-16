@@ -112,8 +112,11 @@ Exemplo mínimo para desenvolvimento:
 ```env
 DATABASE_URL="sqlite:///./lia.db"
 AUTO_CREATE_TABLES="true"
+APP_ENV="development"
 JWT_SECRET="troque-esse-segredo"
 ACCESS_TOKEN_MINUTES="480"
+SESSION_COOKIE_SECURE="false"
+SESSION_COOKIE_SAMESITE="lax"
 FRONTEND_ORIGINS="http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:8062"
 
 LIA_ADMIN_USER="admin"
@@ -208,9 +211,16 @@ Recomendado para produção:
 ```env
 DATABASE_URL="postgresql+psycopg://usuario:senha@host:5432/banco"
 AUTO_CREATE_TABLES="false"
+APP_ENV="production"
+SESSION_COOKIE_SECURE="true"
+SESSION_COOKIE_SAMESITE="lax"
 ```
 
 O backend também normaliza URLs `postgres://` e `postgresql://` para o driver `postgresql+psycopg://`.
+
+Com `APP_ENV=production`, a API bloqueia o startup se `DATABASE_URL` apontar para SQLite, se
+`AUTO_CREATE_TABLES=true`, ou se `JWT_SECRET`, `LIA_ADMIN_PASSWORD` e `LIA_LEADERSHIP_PASSWORD`
+estiverem ausentes/fracos. Isso evita subir producao com configuracao de demonstracao.
 
 ## Migrations com Alembic
 
@@ -242,8 +252,11 @@ Em produção, não dependa de `Base.metadata.create_all`. Use migrations com `A
 | --- | --- |
 | `DATABASE_URL` | URL do banco SQLite ou PostgreSQL. |
 | `AUTO_CREATE_TABLES` | Controla criação automática de tabelas no startup. Use `false` em produção. |
+| `APP_ENV` | Ambiente da API. Use `production` no Render/producao para ativar validacoes de seguranca. |
 | `JWT_SECRET` | Segredo para assinar tokens JWT. |
 | `ACCESS_TOKEN_MINUTES` | Duração da sessão. |
+| `SESSION_COOKIE_SECURE` | Define cookie de sessao como `Secure`. Use `true` em HTTPS/producao. |
+| `SESSION_COOKIE_SAMESITE` | Politica SameSite do cookie de sessao: `lax`, `strict` ou `none`. |
 | `FRONTEND_ORIGINS` | Origens permitidas no CORS. |
 | `LIA_ADMIN_USER` | Usuário admin inicial. |
 | `LIA_ADMIN_PASSWORD` | Senha admin inicial. |
@@ -398,7 +411,10 @@ Variáveis recomendadas no Render:
 ```env
 DATABASE_URL=postgresql+psycopg://usuario:senha@host:5432/banco
 AUTO_CREATE_TABLES=false
+APP_ENV=production
 JWT_SECRET=um_segredo_forte
+SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_SAMESITE=lax
 LIA_ADMIN_USER=admin
 LIA_ADMIN_PASSWORD=senha_forte
 LIA_LEADERSHIP_USER=lideranca
@@ -442,6 +458,9 @@ Boas práticas atuais:
 - Chaves Gemini ficam apenas no backend.
 - Senhas são armazenadas com hash.
 - Tokens JWT são assinados com `JWT_SECRET`.
+- Sessoes web usam cookie `HttpOnly`; o frontend nao armazena mais JWT em `localStorage`.
+- Logout remove o cookie de sessao no backend.
+- Em `APP_ENV=production`, a API valida PostgreSQL, migrations e secrets fortes antes de subir.
 - `.env` não deve ser versionado.
 
 Pontos importantes para produção:

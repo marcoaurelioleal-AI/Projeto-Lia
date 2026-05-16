@@ -1,4 +1,5 @@
 .env
+senha_lider_lia.txt
 __pycache__/
 .pytest_cache/
 pytest-cache-files-*/

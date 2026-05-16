@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import settings
+from .config import settings, validate_production_settings
 from .database import Base, SessionLocal, engine
 from .routers import admin, ai, auth, checklists, evidences, incidents, leadership, manuals, reports
 from .schemas import HealthResponse
@@ -17,6 +17,7 @@ from .seed import seed_database
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    validate_production_settings()
     if settings.auto_create_tables:
         Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:

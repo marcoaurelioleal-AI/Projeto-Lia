@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, FileText, LogOut, UserRoundPlus, UsersRound } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { api, clearLeadershipToken, getLeadershipToken } from '../api/client';
+import { api, clearLeadershipToken } from '../api/client';
 import { PageHeader } from '../components/PageHeader';
 import type {
   LeadershipEmployee,
@@ -46,7 +46,6 @@ export function LeadershipPage() {
   const session = useQuery({
     queryKey: ['leadership-me'],
     queryFn: api.leadershipMe,
-    enabled: Boolean(getLeadershipToken()),
     retry: false
   });
 
@@ -96,16 +95,13 @@ export function LeadershipPage() {
     }
   });
 
-  if (!getLeadershipToken()) {
-    return <Navigate to="/lideranca/login" replace />;
-  }
-
   if (session.isError) {
     clearLeadershipToken();
     return <Navigate to="/lideranca/login" replace />;
   }
 
   function logout() {
+    void api.leadershipLogout();
     clearLeadershipToken();
     navigate('/lideranca/login', { replace: true });
   }

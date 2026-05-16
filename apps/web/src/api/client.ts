@@ -36,47 +36,54 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 const API_ROOT = `${API_BASE_URL.replace(/\/$/, '')}/api`;
 const TOKEN_KEY = 'lia_access_token';
 const LEADERSHIP_TOKEN_KEY = 'lia_leadership_token';
+const SESSION_FLAG_KEY = 'lia_session_active';
+const LEADERSHIP_SESSION_FLAG_KEY = 'lia_leadership_session_active';
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(SESSION_FLAG_KEY);
 }
 
-export function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+export function setToken(_token: string) {
+  void _token;
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.setItem(SESSION_FLAG_KEY, '1');
 }
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(SESSION_FLAG_KEY);
 }
 
 export function getLeadershipToken() {
-  return localStorage.getItem(LEADERSHIP_TOKEN_KEY);
+  return sessionStorage.getItem(LEADERSHIP_SESSION_FLAG_KEY);
 }
 
-export function setLeadershipToken(token: string) {
-  localStorage.setItem(LEADERSHIP_TOKEN_KEY, token);
+export function setLeadershipToken(_token: string) {
+  void _token;
+  localStorage.removeItem(LEADERSHIP_TOKEN_KEY);
+  sessionStorage.setItem(LEADERSHIP_SESSION_FLAG_KEY, '1');
 }
 
 export function clearLeadershipToken() {
   localStorage.removeItem(LEADERSHIP_TOKEN_KEY);
+  sessionStorage.removeItem(LEADERSHIP_SESSION_FLAG_KEY);
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
   const headers = new Headers(options.headers);
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
   const response = await fetch(`${API_ROOT}${path}`, {
     ...options,
+    credentials: 'include',
     headers
   });
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      clearToken();
+    }
     const detail = await response.json().catch(() => ({}));
     throw new Error(detail.detail ?? 'Não foi possível completar a solicitação.');
   }
@@ -85,21 +92,20 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 async function requestLeadership<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getLeadershipToken();
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
-
   const response = await fetch(`${API_ROOT}${path}`, {
     ...options,
+    credentials: 'include',
     headers
   });
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      clearLeadershipToken();
+    }
     const detail = await response.json().catch(() => ({}));
     throw new Error(detail.detail ?? 'Nao foi possivel completar a solicitacao.');
   }
@@ -119,9 +125,8 @@ function withParams(path: string, params: Record<string, string | number | null 
 }
 
 export async function fetchEvidenceBlob(path: string): Promise<Blob> {
-  const token = getToken();
   const response = await fetch(`${API_ROOT}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    credentials: 'include'
   });
   if (!response.ok) {
     throw new Error('Nao foi possivel carregar a evidencia.');
@@ -140,6 +145,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ username, password })
     }),
+  logout: () => request<{ status: string }>('/auth/logout', { method: 'POST' }),
+  leadershipLogout: () => requestLeadership<{ status: string }>('/leadership/logout', { method: 'POST' }),
   leadershipMe: () => requestLeadership<{ username: string; area: 'leadership' }>('/leadership/me'),
   leadershipEmployees: () => requestLeadership<LeadershipEmployee[]>('/leadership/employees'),
   createLeadershipEmployee: (payload: LeadershipEmployeeCreate) =>

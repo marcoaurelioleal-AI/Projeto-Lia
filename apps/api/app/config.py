@@ -53,6 +53,42 @@ def _database_url(value: str | None) -> str | None:
     return cleaned
 
 
+def _cookie_samesite(value: str | None) -> str:
+    cleaned = (_clean_env(value) or "lax").lower()
+    if cleaned not in {"lax", "strict", "none"}:
+        return "lax"
+    return cleaned
+
+
+def _is_sqlite_url(value: str) -> bool:
+    return value.startswith("sqlite")
+
+
+def _is_strong_secret(value: str | None, *, min_length: int = 16) -> bool:
+    cleaned = _clean_secret(value)
+    if not cleaned or len(cleaned) < min_length:
+        return False
+
+    weak_values = {
+        "admin",
+        "admin123",
+        "lia-admin",
+        "lia-dev-secret-change-me",
+        "senha",
+        "senha123",
+        "troque-essa-senha",
+        "troque-esse-segredo",
+        "troque-essa-senha-da-lideranca",
+    }
+    lowered = cleaned.lower()
+    if lowered in weak_values or "troque" in lowered or "change-me" in lowered:
+        return False
+
+    has_letter = any(char.isalpha() for char in cleaned)
+    has_digit = any(char.isdigit() for char in cleaned)
+    return has_letter and has_digit
+
+
 @dataclass(frozen=True)
 class Settings:
     app_name: str = "Projeto LIA API"
@@ -70,6 +106,8 @@ class Settings:
     default_admin_password: str = _clean_env(os.getenv("LIA_ADMIN_PASSWORD") or os.getenv("SENHA_ACESSO")) or "lia-admin"
     leadership_username: str = _clean_env(os.getenv("LIA_LEADERSHIP_USER")) or "lideranca"
     leadership_password: str | None = _clean_secret(os.getenv("LIA_LEADERSHIP_PASSWORD"))
+    session_cookie_secure: bool = _clean_bool(os.getenv("SESSION_COOKIE_SECURE"), default=app_env == "production")
+    session_cookie_samesite: str = _cookie_samesite(os.getenv("SESSION_COOKIE_SAMESITE"))
     upload_dir: str = _clean_env(os.getenv("UPLOAD_DIR")) or "data/uploads/checklist-evidences"
     max_upload_bytes: int = int(_clean_env(os.getenv("MAX_UPLOAD_BYTES")) or str(5 * 1024 * 1024))
 
@@ -82,3 +120,25 @@ class Settings:
 
 
 settings = Settings()
+
+
+def validate_production_settings(active_settings: Settings = settings) -> None:
+    if active_settings.app_env != "production":
+        return
+
+    errors: list[str] = []
+    if _is_sqlite_url(active_settings.database_url):
+        errors.append("DATABASE_URL deve apontar para PostgreSQL em producao")
+    if active_settings.auto_create_tables:
+        errors.append("AUTO_CREATE_TABLES deve ser false em producao")
+    if not _is_strong_secret(active_settings.jwt_secret, min_length=32):
+        errors.append("JWT_SECRET deve ser forte em producao")
+    if not _is_strong_secret(active_settings.default_admin_password):
+        errors.append("LIA_ADMIN_PASSWORD deve ser forte em producao")
+    if not _is_strong_secret(active_settings.leadership_password):
+        errors.append("LIA_LEADERSHIP_PASSWORD deve ser forte em producao")
+    if active_settings.session_cookie_samesite == "none" and not active_settings.session_cookie_secure:
+        errors.append("SESSION_COOKIE_SECURE deve ser true quando SESSION_COOKIE_SAMESITE=none")
+
+    if errors:
+        raise RuntimeError("Configuracao insegura para producao: " + "; ".join(errors))

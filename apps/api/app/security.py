@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,6 +17,8 @@ from .database import get_db
 from .models import User
 
 bearer_scheme = HTTPBearer(auto_error=False)
+AUTH_COOKIE_NAME = "lia_access_token"
+LEADERSHIP_COOKIE_NAME = "lia_leadership_token"
 
 
 def hash_password(password: str, salt: str | None = None) -> str:
@@ -63,14 +65,47 @@ def create_leadership_access_token() -> str:
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 
+def set_session_cookie(response: Response, token: str, *, leadership: bool = False) -> None:
+    response.set_cookie(
+        key=LEADERSHIP_COOKIE_NAME if leadership else AUTH_COOKIE_NAME,
+        value=token,
+        max_age=settings.access_token_minutes * 60,
+        path="/",
+        secure=settings.session_cookie_secure,
+        httponly=True,
+        samesite=settings.session_cookie_samesite,  # type: ignore[arg-type]
+    )
+
+
+def clear_session_cookie(response: Response, *, leadership: bool = False) -> None:
+    response.delete_cookie(
+        key=LEADERSHIP_COOKIE_NAME if leadership else AUTH_COOKIE_NAME,
+        path="/",
+        secure=settings.session_cookie_secure,
+        httponly=True,
+        samesite=settings.session_cookie_samesite,  # type: ignore[arg-type]
+    )
+
+
+def _token_from_credentials(
+    credentials: HTTPAuthorizationCredentials | None,
+    cookie_token: str | None,
+) -> str | None:
+    if credentials is not None:
+        return credentials.credentials
+    return cookie_token
+
+
 def get_current_leadership(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    cookie_token: str | None = Cookie(default=None, alias=LEADERSHIP_COOKIE_NAME),
 ) -> str:
-    if credentials is None:
+    token = _token_from_credentials(credentials, cookie_token)
+    if token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token ausente")
 
     try:
-        payload = jwt.decode(credentials.credentials, settings.jwt_secret, algorithms=["HS256"])
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invÃ¡lido") from exc
 
@@ -81,13 +116,15 @@ def get_current_leadership(
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    cookie_token: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     db: Session = Depends(get_db),
 ) -> User:
-    if credentials is None:
+    token = _token_from_credentials(credentials, cookie_token)
+    if token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token ausente")
 
     try:
-        payload = jwt.decode(credentials.credentials, settings.jwt_secret, algorithms=["HS256"])
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
         user_id = int(payload["sub"])
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido") from exc
