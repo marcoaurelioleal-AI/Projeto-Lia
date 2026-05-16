@@ -8,15 +8,19 @@ from sqlalchemy.orm import Session
 
 from ..repositories.report_repository import ReportRepository
 from ..schemas import ReportSummaryRead
+from ..models import User
+from .permission_service import require_store_access, require_user_permission
 
 
 class ReportService:
     def __init__(self, db: Session) -> None:
         self.repository = ReportRepository(db)
 
-    def summary(self, start_date: date, end_date: date, store: str | None = None) -> ReportSummaryRead:
+    def summary(self, start_date: date, end_date: date, user: User, store: str | None = None) -> ReportSummaryRead:
+        require_user_permission(user, "view_reports")
         if start_date > end_date:
             raise HTTPException(status_code=400, detail="Intervalo de datas invalido")
+        store = require_store_access(user, store) if store else require_store_access(user, None)
 
         start_at = datetime.combine(start_date, time.min)
         end_at = datetime.combine(end_date, time.max)

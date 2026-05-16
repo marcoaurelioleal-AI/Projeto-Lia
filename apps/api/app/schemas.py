@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+Role = Literal["admin", "lideranca", "gerente", "operacao", "auditor"]
+
 
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=80)
@@ -15,7 +17,9 @@ class UserRead(BaseModel):
     id: int
     username: str
     name: str
-    role: str
+    role: Role
+    store_id: int | None = None
+    store_name: str | None = None
     active: bool
 
     model_config = {"from_attributes": True}
@@ -24,13 +28,15 @@ class UserRead(BaseModel):
 class UserCreate(BaseModel):
     username: str = Field(min_length=3, max_length=80, pattern=r"^[A-Za-z0-9_.-]+$")
     name: str = Field(min_length=2, max_length=120)
-    role: Literal["admin", "operacao"] = "operacao"
+    role: Role = "operacao"
+    store_id: int | None = None
     password: str = Field(min_length=6, max_length=200)
 
 
 class UserUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=120)
-    role: Literal["admin", "operacao"] | None = None
+    role: Role | None = None
+    store_id: int | None = None
     active: bool | None = None
 
 

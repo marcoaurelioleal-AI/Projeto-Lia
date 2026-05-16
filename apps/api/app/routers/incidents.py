@@ -20,10 +20,10 @@ def get_incident_service(db: Session = Depends(get_db)) -> IncidentService:
 def list_incidents(
     status: IncidentStatus | None = None,
     store: str | None = None,
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: IncidentService = Depends(get_incident_service),
 ) -> list[OperationalIncidentRead]:
-    return service.list_incidents(status=status, store=store)
+    return service.list_incidents(user=user, status=status, store=store)
 
 
 @router.post("", response_model=OperationalIncidentRead)
@@ -38,10 +38,10 @@ def create_incident(
 @router.get("/{incident_id}", response_model=OperationalIncidentRead)
 def get_incident(
     incident_id: int,
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: IncidentService = Depends(get_incident_service),
 ) -> OperationalIncidentRead:
-    return service.get_incident(incident_id)
+    return service.get_incident(incident_id, user)
 
 
 @router.patch("/{incident_id}", response_model=OperationalIncidentRead)

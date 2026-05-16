@@ -22,6 +22,13 @@ class EvidenceRepository:
             .where(ChecklistRunItem.id == item_id)
         )
 
+    def get_run(self, run_id: int) -> ChecklistRun | None:
+        return self.db.scalar(
+            select(ChecklistRun)
+            .options(joinedload(ChecklistRun.template), joinedload(ChecklistRun.items))
+            .where(ChecklistRun.id == run_id)
+        )
+
     def add(self, evidence: ChecklistEvidence) -> ChecklistEvidence:
         self.db.add(evidence)
         self.db.flush()

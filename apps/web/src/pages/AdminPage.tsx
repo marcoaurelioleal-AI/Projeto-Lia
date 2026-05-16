@@ -123,7 +123,12 @@ export function AdminPage() {
       </section>
 
       <section className="mt-5 grid gap-4 xl:grid-cols-2">
-        <UsersAdminSection currentUserId={user?.id ?? 0} users={users.data ?? []} loading={users.isLoading} />
+        <UsersAdminSection
+          currentUserId={user?.id ?? 0}
+          users={users.data ?? []}
+          stores={stores.data ?? []}
+          loading={users.isLoading}
+        />
         <StoresAdminSection stores={stores.data ?? []} loading={stores.isLoading} />
       </section>
 
@@ -236,10 +241,12 @@ function AiInteractionsAdminSection({
 function UsersAdminSection({
   currentUserId,
   users,
+  stores,
   loading
 }: {
   currentUserId: number;
   users: User[];
+  stores: StoreOption[];
   loading: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -254,7 +261,13 @@ function UsersAdminSection({
   });
 
   const updateUser = useMutation({
-    mutationFn: ({ userId, payload }: { userId: number; payload: Partial<Pick<User, 'name' | 'role' | 'active'>> }) =>
+    mutationFn: ({
+      userId,
+      payload
+    }: {
+      userId: number;
+      payload: Partial<Pick<User, 'name' | 'role' | 'store_id' | 'active'>>;
+    }) =>
       api.updateAdminUser(userId, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] })
   });
@@ -288,8 +301,25 @@ function UsersAdminSection({
             value={form.role}
             onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as Role }))}
           >
-            <option value="operacao">operacao</option>
             <option value="admin">admin</option>
+            <option value="lideranca">lideranca</option>
+            <option value="gerente">gerente</option>
+            <option value="operacao">operacao</option>
+            <option value="auditor">auditor</option>
+          </select>
+          <select
+            className="focus-ring rounded-lg border border-lia-red/15 px-3 py-2 text-sm"
+            value={form.store_id ?? ''}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, store_id: event.target.value ? Number(event.target.value) : null }))
+            }
+          >
+            <option value="">Acesso global / sem loja</option>
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name}
+              </option>
+            ))}
           </select>
           <input
             className="focus-ring rounded-lg border border-lia-red/15 px-3 py-2 text-sm"
@@ -316,19 +346,41 @@ function UsersAdminSection({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-bold text-lia-burgundy">{item.name}</p>
-                <p className="text-xs text-lia-muted">@{item.username}</p>
+                <p className="text-xs text-lia-muted">
+                  @{item.username} · {item.role} · {item.store_name ?? 'acesso global'}
+                </p>
               </div>
               <StatusPill active={item.active} />
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button
+              <select
                 className="focus-ring rounded-lg border border-lia-red/20 px-3 py-2 text-xs font-bold text-lia-burgundy"
-                onClick={() =>
-                  updateUser.mutate({ userId: item.id, payload: { role: item.role === 'admin' ? 'operacao' : 'admin' } })
+                value={item.role}
+                onChange={(event) => updateUser.mutate({ userId: item.id, payload: { role: event.target.value as Role } })}
+              >
+                <option value="admin">admin</option>
+                <option value="lideranca">lideranca</option>
+                <option value="gerente">gerente</option>
+                <option value="operacao">operacao</option>
+                <option value="auditor">auditor</option>
+              </select>
+              <select
+                className="focus-ring rounded-lg border border-lia-red/20 px-3 py-2 text-xs font-bold text-lia-burgundy"
+                value={item.store_id ?? ''}
+                onChange={(event) =>
+                  updateUser.mutate({
+                    userId: item.id,
+                    payload: { store_id: event.target.value ? Number(event.target.value) : null }
+                  })
                 }
               >
-                Tornar {item.role === 'admin' ? 'operacao' : 'admin'}
-              </button>
+                <option value="">acesso global</option>
+                {stores.map((store) => (
+                  <option key={store.id} value={store.id}>
+                    {store.name}
+                  </option>
+                ))}
+              </select>
               <button
                 className="focus-ring rounded-lg border border-lia-red/20 px-3 py-2 text-xs font-bold text-lia-burgundy disabled:opacity-50"
                 disabled={item.id === currentUserId}

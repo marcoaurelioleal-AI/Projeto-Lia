@@ -23,9 +23,9 @@ def get_summary(
     start_date: date | None = None,
     end_date: date | None = None,
     store: str | None = None,
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: ReportService = Depends(get_report_service),
 ) -> ReportSummaryRead:
     target_end = end_date or date.today()
     target_start = start_date or (target_end - timedelta(days=6))
-    return service.summary(start_date=target_start, end_date=target_end, store=store)
+    return service.summary(start_date=target_start, end_date=target_end, user=user, store=store)

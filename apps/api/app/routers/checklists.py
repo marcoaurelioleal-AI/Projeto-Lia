@@ -22,10 +22,10 @@ def get_checklist_service(db: Session = Depends(get_db)) -> ChecklistService:
 def list_checklists(
     run_date: date | None = None,
     store: str = "Grupo Lia",
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: ChecklistService = Depends(get_checklist_service),
 ) -> list[ChecklistRunRead]:
-    return service.list_checklists(run_date, store)
+    return service.list_checklists(run_date, store, user)
 
 
 @router.patch("/{run_id}/items", response_model=ChecklistRunRead)
@@ -42,7 +42,7 @@ def update_checklist_item(
 def update_closing_note(
     run_id: int,
     payload: ClosingNoteUpdate,
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: ChecklistService = Depends(get_checklist_service),
 ) -> ChecklistRunRead:
-    return service.update_closing_note(run_id, payload.closing_note)
+    return service.update_closing_note(run_id, payload.closing_note, user)

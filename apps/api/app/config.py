@@ -108,6 +108,13 @@ class Settings:
     leadership_password: str | None = _clean_secret(os.getenv("LIA_LEADERSHIP_PASSWORD"))
     session_cookie_secure: bool = _clean_bool(os.getenv("SESSION_COOKIE_SECURE"), default=app_env == "production")
     session_cookie_samesite: str = _cookie_samesite(os.getenv("SESSION_COOKIE_SAMESITE"))
+    storage_provider: str = (_clean_env(os.getenv("STORAGE_PROVIDER")) or "local").lower()
+    supabase_url: str | None = _clean_env(os.getenv("SUPABASE_URL"))
+    supabase_service_role_key: str | None = _clean_secret(os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
+    supabase_storage_bucket: str | None = _clean_env(os.getenv("SUPABASE_STORAGE_BUCKET"))
+    supabase_signed_url_expires_seconds: int = int(
+        _clean_env(os.getenv("SUPABASE_SIGNED_URL_EXPIRES_SECONDS")) or "300"
+    )
     upload_dir: str = _clean_env(os.getenv("UPLOAD_DIR")) or "data/uploads/checklist-evidences"
     max_upload_bytes: int = int(_clean_env(os.getenv("MAX_UPLOAD_BYTES")) or str(5 * 1024 * 1024))
 
@@ -139,6 +146,15 @@ def validate_production_settings(active_settings: Settings = settings) -> None:
         errors.append("LIA_LEADERSHIP_PASSWORD deve ser forte em producao")
     if active_settings.session_cookie_samesite == "none" and not active_settings.session_cookie_secure:
         errors.append("SESSION_COOKIE_SECURE deve ser true quando SESSION_COOKIE_SAMESITE=none")
+    if active_settings.storage_provider != "supabase":
+        errors.append("STORAGE_PROVIDER deve ser supabase em producao")
+    if active_settings.storage_provider == "supabase":
+        if not active_settings.supabase_url:
+            errors.append("SUPABASE_URL e obrigatoria para Supabase Storage")
+        if not active_settings.supabase_service_role_key:
+            errors.append("SUPABASE_SERVICE_ROLE_KEY e obrigatoria para Supabase Storage")
+        if not active_settings.supabase_storage_bucket:
+            errors.append("SUPABASE_STORAGE_BUCKET e obrigatoria para Supabase Storage")
 
     if errors:
         raise RuntimeError("Configuracao insegura para producao: " + "; ".join(errors))

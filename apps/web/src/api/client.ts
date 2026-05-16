@@ -204,7 +204,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload)
     }),
-  updateAdminUser: (userId: number, payload: Partial<Pick<User, 'name' | 'role' | 'active'>>) =>
+  updateAdminUser: (userId: number, payload: Partial<Pick<User, 'name' | 'role' | 'store_id' | 'active'>>) =>
     request<User>(`/admin/users/${userId}`, {
       method: 'PATCH',
       body: JSON.stringify(payload)

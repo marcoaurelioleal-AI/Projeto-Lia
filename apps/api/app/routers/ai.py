@@ -10,7 +10,7 @@ from ..config import settings
 from ..database import get_db
 from ..models import User
 from ..schemas import AiChatHistoryItem, AiInteractionRead, AiMode, AiResponseMode, ChatRequest, ChatResponse
-from ..security import get_current_user, require_admin_user
+from ..security import get_current_user, require_permission
 from ..services.ai_service import AiService
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -47,7 +47,7 @@ def ai_interactions(
     user_id: int | None = None,
     response_mode: AiResponseMode | None = None,
     ai_mode: AiMode | None = None,
-    _: User = Depends(require_admin_user),
+    _: User = Depends(require_permission("view_audit")),
     service: AiService = Depends(get_ai_service),
 ) -> list[AiInteractionRead]:
     return service.interactions(
@@ -62,7 +62,7 @@ def ai_interactions(
 @router.post("/chat", response_model=ChatResponse)
 def chat(
     payload: ChatRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_permission("use_ai")),
     service: AiService = Depends(get_ai_service),
 ) -> ChatResponse:
     return service.chat(payload, user)

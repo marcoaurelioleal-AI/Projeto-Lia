@@ -8,23 +8,30 @@ from sqlalchemy.orm import Session
 from ..models import OperationalIncident, User
 from ..repositories.incident_repository import IncidentRepository
 from ..schemas import OperationalIncidentCreate, OperationalIncidentRead, OperationalIncidentUpdate
+from .permission_service import require_store_access, require_user_permission
 
 
 class IncidentService:
     def __init__(self, db: Session) -> None:
         self.repository = IncidentRepository(db)
 
-    def list_incidents(self, status: str | None = None, store: str | None = None) -> list[OperationalIncidentRead]:
+    def list_incidents(
+        self, user: User, status: str | None = None, store: str | None = None
+    ) -> list[OperationalIncidentRead]:
+        require_user_permission(user, "manage_incidents")
+        store = require_store_access(user, store) if store else require_store_access(user, None)
         incidents = self.repository.list_incidents(status=status, store=store)
         return [self.serialize_incident(incident) for incident in incidents]
 
     def create_incident(self, payload: OperationalIncidentCreate, user: User) -> OperationalIncidentRead:
+        require_user_permission(user, "manage_incidents")
         description = payload.description.strip()
         if not description:
             raise HTTPException(status_code=400, detail="Descricao da ocorrencia e obrigatoria")
+        store = require_store_access(user, payload.store.strip() or "Grupo Lia")
 
         incident = OperationalIncident(
-            store=payload.store.strip() or "Grupo Lia",
+            store=store,
             category=payload.category,
             severity=payload.severity,
             description=description,
@@ -34,22 +41,26 @@ class IncidentService:
         incident = self.repository.add(incident)
         return self.serialize_incident(self.repository.get_incident(incident.id) or incident)
 
-    def get_incident(self, incident_id: int) -> OperationalIncidentRead:
+    def get_incident(self, incident_id: int, user: User) -> OperationalIncidentRead:
+        require_user_permission(user, "manage_incidents")
         incident = self.repository.get_incident(incident_id)
         if not incident:
             raise HTTPException(status_code=404, detail="Ocorrencia nao encontrada")
+        require_store_access(user, incident.store)
         return self.serialize_incident(incident)
 
     def update_incident(
         self, incident_id: int, payload: OperationalIncidentUpdate, user: User
     ) -> OperationalIncidentRead:
+        require_user_permission(user, "manage_incidents")
         incident = self.repository.get_incident(incident_id)
         if not incident:
             raise HTTPException(status_code=404, detail="Ocorrencia nao encontrada")
+        require_store_access(user, incident.store)
 
         changes = payload.model_dump(exclude_unset=True)
         if "store" in changes and changes["store"] is not None:
-            incident.store = changes["store"].strip() or "Grupo Lia"
+            incident.store = require_store_access(user, changes["store"].strip() or "Grupo Lia")
         if "category" in changes and changes["category"] is not None:
             incident.category = changes["category"]
         if "severity" in changes and changes["severity"] is not None:

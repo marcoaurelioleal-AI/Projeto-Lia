@@ -1,10 +1,12 @@
-export type Role = 'admin' | 'operacao';
+export type Role = 'admin' | 'lideranca' | 'gerente' | 'operacao' | 'auditor';
 
 export interface User {
   id: number;
   username: string;
   name: string;
   role: Role;
+  store_id: number | null;
+  store_name: string | null;
   active: boolean;
 }
 
@@ -12,6 +14,7 @@ export interface UserCreate {
   username: string;
   name: string;
   role: Role;
+  store_id?: number | null;
   password: string;
 }
 

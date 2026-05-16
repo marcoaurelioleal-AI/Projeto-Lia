@@ -10,11 +10,12 @@ import jwt
 from fastapi import Cookie, Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .config import settings
 from .database import get_db
 from .models import User
+from .services.permission_service import require_user_permission
 
 bearer_scheme = HTTPBearer(auto_error=False)
 AUTH_COOKIE_NAME = "lia_access_token"
@@ -129,7 +130,9 @@ def get_current_user(
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido") from exc
 
-    user = db.scalar(select(User).where(User.id == user_id, User.active.is_(True)))
+    user = db.scalar(
+        select(User).options(joinedload(User.store)).where(User.id == user_id, User.active.is_(True))
+    )
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário inativo ou inexistente")
     return user
@@ -139,3 +142,10 @@ def require_admin_user(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito a administradores")
     return user
+
+
+def require_permission(permission: str):
+    def dependency(user: User = Depends(get_current_user)) -> User:
+        return require_user_permission(user, permission)
+
+    return dependency

@@ -111,6 +111,10 @@ def test_production_settings_accept_postgres_and_strong_secrets() -> None:
         default_admin_password="AdminSenhaForte123",
         leadership_password="LiderSenhaForte123",
         session_cookie_secure=True,
+        storage_provider="supabase",
+        supabase_url="https://example.supabase.co",
+        supabase_service_role_key="ServiceRoleForte123",
+        supabase_storage_bucket="lia-evidences",
     )
 
     validate_production_settings(safe)
@@ -295,13 +299,24 @@ def test_admin_can_manage_users_and_stores() -> None:
     with TestClient(app) as client:
         headers = auth_headers(client)
 
+        created_store = client.post("/api/admin/stores", headers=headers, json={"name": "Lia Teste"})
+        assert created_store.status_code == 200
+        store_id = created_store.json()["id"]
+
         created_user = client.post(
             "/api/admin/users",
             headers=headers,
-            json={"username": "operador_teste", "name": "Operador Teste", "role": "operacao", "password": "senha123"},
+            json={
+                "username": "operador_teste",
+                "name": "Operador Teste",
+                "role": "operacao",
+                "store_id": store_id,
+                "password": "senha123",
+            },
         )
         assert created_user.status_code == 200
         user_id = created_user.json()["id"]
+        assert created_user.json()["store_id"] == store_id
 
         promoted = client.patch(f"/api/admin/users/{user_id}", headers=headers, json={"role": "admin"})
         assert promoted.status_code == 200
@@ -311,10 +326,6 @@ def test_admin_can_manage_users_and_stores() -> None:
         assert disabled_user.status_code == 200
         assert disabled_user.json()["active"] is False
 
-        created_store = client.post("/api/admin/stores", headers=headers, json={"name": "Lia Teste"})
-        assert created_store.status_code == 200
-        store_id = created_store.json()["id"]
-
         renamed = client.patch(f"/api/admin/stores/{store_id}", headers=headers, json={"name": "Lia Teste 2"})
         assert renamed.status_code == 200
         assert renamed.json()["name"] == "Lia Teste 2"
@@ -322,6 +333,113 @@ def test_admin_can_manage_users_and_stores() -> None:
         disabled_store = client.delete(f"/api/admin/stores/{store_id}", headers=headers)
         assert disabled_store.status_code == 200
         assert disabled_store.json()["active"] is False
+
+
+def test_rbac_and_store_scope_for_operational_user() -> None:
+    with TestClient(app) as client:
+        admin = auth_headers(client)
+        store = client.post("/api/admin/stores", headers=admin, json={"name": "Lia RBAC"}).json()
+        created_user = client.post(
+            "/api/admin/users",
+            headers=admin,
+            json={
+                "username": "operador_rbac",
+                "name": "Operador RBAC",
+                "role": "operacao",
+                "store_id": store["id"],
+                "password": "senha123",
+            },
+        )
+        assert created_user.status_code == 200
+
+        login = client.post("/api/auth/login", json={"username": "operador_rbac", "password": "senha123"})
+        assert login.status_code == 200
+        token = login.json()["access_token"]
+        operator = {"Authorization": f"Bearer {token}"}
+
+        admin_denied = client.get("/api/admin/users", headers=operator)
+        assert admin_denied.status_code == 403
+
+        own_store = client.get(f"/api/checklists?store={store['name']}", headers=operator)
+        assert own_store.status_code == 200
+
+        other_store = client.get("/api/checklists?store=Lia Pizza", headers=operator)
+        assert other_store.status_code == 403
+
+
+def test_auditor_can_view_reports_and_audit_but_not_create_user() -> None:
+    with TestClient(app) as client:
+        admin = auth_headers(client)
+        created = client.post(
+            "/api/admin/users",
+            headers=admin,
+            json={
+                "username": "auditor_teste",
+                "name": "Auditor Teste",
+                "role": "auditor",
+                "password": "senha123",
+            },
+        )
+        assert created.status_code == 200
+
+        login = client.post("/api/auth/login", json={"username": "auditor_teste", "password": "senha123"})
+        assert login.status_code == 200
+        auditor = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+        report = client.get("/api/reports/summary", headers=auditor)
+        assert report.status_code == 200
+
+        audit = client.get("/api/evidences", headers=auditor)
+        assert audit.status_code == 200
+
+        denied = client.post(
+            "/api/admin/users",
+            headers=auditor,
+            json={"username": "xpto", "name": "Xpto", "role": "operacao", "password": "senha123"},
+        )
+        assert denied.status_code == 403
+
+
+def test_evidences_are_restricted_by_user_store() -> None:
+    with TestClient(app) as client:
+        admin = auth_headers(client)
+        store_a = client.post("/api/admin/stores", headers=admin, json={"name": "Lia Evid A"}).json()
+        store_b = client.post("/api/admin/stores", headers=admin, json={"name": "Lia Evid B"}).json()
+
+        user_b = client.post(
+            "/api/admin/users",
+            headers=admin,
+            json={
+                "username": "operador_evid_b",
+                "name": "Operador Evid B",
+                "role": "operacao",
+                "store_id": store_b["id"],
+                "password": "senha123",
+            },
+        )
+        assert user_b.status_code == 200
+
+        runs = client.get(f"/api/checklists?store={store_a['name']}", headers=admin).json()
+        item_id = runs[0]["items"][0]["id"]
+        uploaded = client.post(
+            f"/api/checklists/items/{item_id}/evidences",
+            headers=admin,
+            files={"file": ("evidencia.png", b"fake-image", "image/png")},
+        )
+        assert uploaded.status_code == 200
+        evidence_id = uploaded.json()["id"]
+
+        login_b = client.post("/api/auth/login", json={"username": "operador_evid_b", "password": "senha123"})
+        operator_b = {"Authorization": f"Bearer {login_b.json()['access_token']}"}
+
+        denied_list = client.get(f"/api/checklists/items/{item_id}/evidences", headers=operator_b)
+        assert denied_list.status_code == 403
+
+        denied_file = client.get(f"/api/evidences/{evidence_id}/file", headers=operator_b, follow_redirects=False)
+        assert denied_file.status_code == 403
+
+        admin_file = client.get(f"/api/evidences/{evidence_id}/file", headers=admin)
+        assert admin_file.status_code == 200
 
 
 def test_admin_can_manage_checklist_templates() -> None:

@@ -262,6 +262,11 @@ Em produção, não dependa de `Base.metadata.create_all`. Use migrations com `A
 | `LIA_ADMIN_PASSWORD` | Senha admin inicial. |
 | `LIA_LEADERSHIP_USER` | Usuário do acesso exclusivo da liderança. |
 | `LIA_LEADERSHIP_PASSWORD` | Senha do acesso exclusivo da liderança. |
+| `STORAGE_PROVIDER` | `local` no desenvolvimento ou `supabase` em producao. |
+| `SUPABASE_URL` | URL do projeto Supabase usada apenas no backend. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key do Supabase. Nunca enviar ao frontend. |
+| `SUPABASE_STORAGE_BUCKET` | Bucket privado de evidencias. |
+| `SUPABASE_SIGNED_URL_EXPIRES_SECONDS` | Duracao das URLs assinadas para visualizar evidencias. |
 | `GEMINI_API_KEY` | Chave da API Gemini usada pela Lia. |
 | `MODELO_GEMINI` | Modelo Gemini. Padrão recomendado: `gemini-2.5-flash`. |
 | `UPLOAD_DIR` | Pasta local para evidências em desenvolvimento. |
@@ -366,9 +371,38 @@ As rotas de API ficam sob o prefixo `/api` para não conflitar com as páginas R
 - `/lideranca`: área exclusiva para liderança registrar funcionários, feedbacks e medidas disciplinares.
 - `/incidents`: registro e acompanhamento de ocorrências reais do turno.
 - `/reports`: resumo semanal ou mensal para gestão.
-- Checklists: cada item agora aceita foto como evidência, com storage local protegido por autenticação.
+- Checklists: cada item agora aceita foto como evidência, com storage local em desenvolvimento e Supabase Storage em producao.
 
-Para produção, troque o storage local por um provider externo como S3, Cloudinary ou Supabase Storage antes de depender das fotos como arquivo permanente.
+## Supabase em producao
+
+O Projeto LIA usa Supabase apenas pelo backend: PostgreSQL para dados e Storage privado para evidencias.
+Nao coloque `SUPABASE_SERVICE_ROLE_KEY` no frontend.
+
+### Supabase PostgreSQL
+
+Passos manuais:
+
+1. Crie um projeto no Supabase.
+2. Em Project Settings > Database, copie a connection string PostgreSQL.
+3. Se o Render apresentar problema de IPv6, use a connection string do Session Pooler.
+4. No Render, configure `DATABASE_URL` com o formato `postgresql+psycopg://...`.
+5. Mantenha `APP_ENV=production` e `AUTO_CREATE_TABLES=false`.
+6. Redeploy. O Dockerfile ja executa `alembic upgrade head` antes do `uvicorn`.
+
+SQLite deve ficar apenas para desenvolvimento local.
+
+### Supabase Storage
+
+Passos manuais:
+
+1. No Supabase, crie um bucket privado, por exemplo `lia-evidences`.
+2. Configure no Render:
+   - `STORAGE_PROVIDER=supabase`
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `SUPABASE_STORAGE_BUCKET=lia-evidences`
+   - `SUPABASE_SIGNED_URL_EXPIRES_SECONDS=300`
+3. Nao torne o bucket publico. O backend valida permissao antes de gerar URL assinada temporaria.
 
 ## Validações
 
@@ -419,17 +453,22 @@ LIA_ADMIN_USER=admin
 LIA_ADMIN_PASSWORD=senha_forte
 LIA_LEADERSHIP_USER=lideranca
 LIA_LEADERSHIP_PASSWORD=senha_forte_da_lideranca
+STORAGE_PROVIDER=supabase
+SUPABASE_URL=https://seu-projeto.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key
+SUPABASE_STORAGE_BUCKET=lia-evidences
+SUPABASE_SIGNED_URL_EXPIRES_SECONDS=300
 GEMINI_API_KEY=sua_chave_gemini
 MODELO_GEMINI=gemini-2.5-flash
 FRONTEND_ORIGINS=https://seu-dominio.onrender.com
-UPLOAD_DIR=/app/data/uploads/checklist-evidences
 MAX_UPLOAD_BYTES=5242880
 ```
 
-Para teste simples no plano gratuito, SQLite funciona:
+Para desenvolvimento local, SQLite e storage local continuam funcionando:
 
 ```env
-DATABASE_URL=sqlite:////app/data/lia.db
+DATABASE_URL=sqlite:///./lia.db
+STORAGE_PROVIDER=local
 ```
 
 Para produção real, use PostgreSQL. SQLite em serviço cloud gratuito pode perder dados dependendo da configuração de disco.

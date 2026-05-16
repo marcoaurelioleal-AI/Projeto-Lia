@@ -17,9 +17,15 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(120))
     role: Mapped[str] = mapped_column(String(30), default="operacao")
+    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id"), nullable=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    store: Mapped["Store"] = relationship()
+
+    @property
+    def store_name(self) -> str | None:
+        return self.store.name if self.store else None
 
 
 class LeadershipEmployee(Base):

@@ -22,6 +22,7 @@ from ..schemas import (
     UserUpdate,
 )
 from ..security import hash_password
+from .permission_service import validate_user_store_assignment
 
 
 class AdminService:
@@ -35,12 +36,17 @@ class AdminService:
         username = payload.username.strip().lower()
         if self.repository.get_user_by_username(username):
             raise HTTPException(status_code=409, detail="Usuario ja cadastrado")
+        store = self.repository.get_store(payload.store_id) if payload.store_id else None
+        if payload.store_id and not store:
+            raise HTTPException(status_code=404, detail="Loja nao encontrada")
+        validate_user_store_assignment(payload.role, store)
 
         return self.repository.add_user(
             User(
                 username=username,
                 name=payload.name.strip(),
                 role=payload.role,
+                store_id=store.id if store else None,
                 password_hash=hash_password(payload.password),
                 active=True,
             )
@@ -56,6 +62,16 @@ class AdminService:
             user.name = changes["name"].strip()
         if "role" in changes and changes["role"] is not None:
             user.role = changes["role"]
+        if "store_id" in changes:
+            if changes["store_id"] is None:
+                user.store_id = None
+            else:
+                store = self.repository.get_store(changes["store_id"])
+                if not store:
+                    raise HTTPException(status_code=404, detail="Loja nao encontrada")
+                user.store_id = store.id
+        store = self.repository.get_store(user.store_id) if user.store_id else None
+        validate_user_store_assignment(user.role, store)
         if "active" in changes and changes["active"] is not None:
             if user.id == current_user.id and changes["active"] is False:
                 raise HTTPException(status_code=400, detail="Nao e possivel desativar o proprio usuario")
