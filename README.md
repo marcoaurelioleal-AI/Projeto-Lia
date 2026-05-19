@@ -287,11 +287,13 @@ A Lia é a assistente operacional da Central LIA.
 Na versão atual, ela:
 
 - responde dúvidas operacionais;
-- usa RAG operacional simples para recuperar trechos relevantes dos manuais internos;
+- usa RAG operacional com chunks persistidos e similaridade local para recuperar trechos relevantes dos manuais internos;
 - aceita modos de resposta: `rapido`, `detalhado` e `treinamento`;
 - mostra fontes usadas;
 - salva histórico resumido;
 - registra interações auditáveis com pergunta, resposta, modo, fontes e latência;
+- registra feedback `ajudou` / `nao_ajudou` por interação;
+- agrupa dúvidas com baixa qualidade para orientar melhorias nos manuais;
 - pede confirmação da gestão quando a base não é suficiente;
 - não executa ações no sistema.
 
@@ -302,9 +304,10 @@ apps/api/app/services/rag_service.py
 apps/api/app/services/ai_service.py
 apps/api/app/repositories/manual_repository.py
 apps/api/app/repositories/ai_repository.py
+apps/api/app/models.py
 ```
 
-A primeira versão usa busca textual por relevância, sem vector database. A arquitetura ficou preparada para trocar o recuperador por embeddings/vector store futuramente sem reescrever a rota `/ai/chat`.
+A camada atual sincroniza os manuais em `ai_knowledge_chunks`, gera embeddings locais determinístico-lexicais e mantém fallback textual. Isso entrega rastreabilidade imediata e preserva o caminho para trocar o recuperador por vector store externo futuramente sem reescrever a rota `/ai/chat`.
 
 ## Endpoints Principais
 
@@ -322,6 +325,8 @@ As rotas de API ficam sob o prefixo `/api` para não conflitar com as páginas R
 | `POST` | `/api/ai/chat` | Conversa com a Lia. |
 | `GET` | `/api/ai/history` | Histórico resumido da Lia. |
 | `GET` | `/api/ai/interactions` | Histórico auditável das interações da IA para administradores. |
+| `POST` | `/api/ai/interactions/{interaction_id}/feedback` | Registra se a resposta da Lia ajudou. |
+| `GET` | `/api/ai/knowledge-gaps` | Lista dúvidas recorrentes/ruins para melhoria de manuais. |
 | `GET` | `/api/ai/status` | Diagnóstico seguro da configuração de IA. |
 | `POST` | `/api/leadership/login` | Login exclusivo da liderança. |
 | `GET` | `/api/leadership/me` | Valida sessão da liderança. |

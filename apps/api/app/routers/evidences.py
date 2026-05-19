@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import User
-from ..schemas import ChecklistEvidenceRead
+from ..schemas import ChecklistEvidenceRead, EvidenceAuditFilterOptionsRead
 from ..security import get_current_user, require_permission
 from ..services.evidence_service import EvidenceService
 
@@ -53,10 +53,52 @@ def list_evidences_audit(
     store: str | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
+    checklist_title: str | None = None,
+    uploaded_by: str | None = None,
     user: User = Depends(require_permission("view_audit")),
     service: EvidenceService = Depends(get_evidence_service),
 ) -> list[ChecklistEvidenceRead]:
-    return service.list_audit(user=user, store=store, start_date=start_date, end_date=end_date)
+    return service.list_audit(
+        user=user,
+        store=store,
+        start_date=start_date,
+        end_date=end_date,
+        checklist_title=checklist_title,
+        uploaded_by=uploaded_by,
+    )
+
+
+@router.get("/evidences/filter-options", response_model=EvidenceAuditFilterOptionsRead)
+def evidence_audit_filter_options(
+    user: User = Depends(require_permission("view_audit")),
+    service: EvidenceService = Depends(get_evidence_service),
+) -> EvidenceAuditFilterOptionsRead:
+    return service.filter_options(user)
+
+
+@router.get("/evidences/export", response_model=None)
+def export_evidences_audit(
+    store: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    checklist_title: str | None = None,
+    uploaded_by: str | None = None,
+    user: User = Depends(require_permission("view_audit")),
+    service: EvidenceService = Depends(get_evidence_service),
+) -> Response:
+    content = service.export_audit_csv(
+        user=user,
+        store=store,
+        start_date=start_date,
+        end_date=end_date,
+        checklist_title=checklist_title,
+        uploaded_by=uploaded_by,
+    )
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="auditoria-evidencias.csv"'},
+    )
 
 
 @router.get("/evidences/{evidence_id}/file", include_in_schema=False, response_model=None)

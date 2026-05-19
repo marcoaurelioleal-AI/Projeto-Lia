@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import re
+import unicodedata
 from datetime import date, datetime, time
 from time import perf_counter
 
@@ -12,7 +14,9 @@ from ..models import AiInteraction, User
 from ..repositories.ai_repository import AiRepository
 from ..schemas import (
     AiChatHistoryItem,
+    AiFeedbackCreate,
     AiInteractionRead,
+    AiKnowledgeGapRead,
     AiMode,
     AiResponseMode,
     ChatRequest,
@@ -44,7 +48,7 @@ class AiService:
                 "esse procedimento."
             )
             latency_ms = self._latency_ms(started_at)
-            self._record(
+            interaction_id = self._record(
                 session=session,
                 user=user,
                 question=question,
@@ -61,6 +65,7 @@ class AiService:
                 reply=reply,
                 mode="offline",
                 session_id=session.id,
+                interaction_id=interaction_id,
                 sources=sources,
                 needs_manager_confirmation=True,
                 response_mode=response_mode,
@@ -69,7 +74,7 @@ class AiService:
         if not settings.gemini_api_key:
             reply = self._offline_reply(retrieved_context)
             latency_ms = self._latency_ms(started_at)
-            self._record(
+            interaction_id = self._record(
                 session=session,
                 user=user,
                 question=question,
@@ -85,6 +90,7 @@ class AiService:
                 reply=reply,
                 mode="offline",
                 session_id=session.id,
+                interaction_id=interaction_id,
                 sources=sources,
                 needs_manager_confirmation=True,
                 response_mode=response_mode,
@@ -99,7 +105,7 @@ class AiService:
                 retrieved_context=retrieved_context,
             )
             latency_ms = self._latency_ms(started_at)
-            self._record(
+            interaction_id = self._record(
                 session=session,
                 user=user,
                 question=question,
@@ -115,6 +121,7 @@ class AiService:
                 reply=reply,
                 mode="gemini",
                 session_id=session.id,
+                interaction_id=interaction_id,
                 sources=sources,
                 needs_manager_confirmation=False,
                 response_mode=response_mode,
@@ -123,7 +130,7 @@ class AiService:
             logger.exception("Falha ao consultar Gemini: %s", exc)
             reply = describe_gemini_error(exc)
             latency_ms = self._latency_ms(started_at)
-            self._record(
+            interaction_id = self._record(
                 session=session,
                 user=user,
                 question=question,
@@ -140,6 +147,7 @@ class AiService:
                 reply=reply,
                 mode="error",
                 session_id=session.id,
+                interaction_id=interaction_id,
                 sources=sources,
                 needs_manager_confirmation=True,
                 response_mode=response_mode,
@@ -181,6 +189,75 @@ class AiService:
             ai_mode=ai_mode,
         )
         return [self._serialize_interaction(interaction) for interaction in interactions]
+
+    def feedback(self, interaction_id: int, payload: AiFeedbackCreate, user: User) -> AiInteractionRead:
+        interaction = self.repository.get_interaction(interaction_id)
+        if not interaction:
+            raise HTTPException(status_code=404, detail="Interacao da IA nao encontrada")
+        if user.role != "admin" and interaction.user_id != user.id:
+            raise HTTPException(status_code=403, detail="Feedback permitido apenas para a propria interacao")
+
+        updated = self.repository.set_feedback(
+            interaction,
+            rating=payload.rating,
+            comment=payload.comment.strip() if payload.comment else None,
+        )
+        self.repository.commit()
+        return self._serialize_interaction(updated)
+
+    def knowledge_gaps(self, limit: int = 8) -> list[AiKnowledgeGapRead]:
+        groups: dict[str, dict[str, object]] = {}
+        for interaction in self.repository.list_interactions(limit=200):
+            if not self._is_knowledge_gap_candidate(interaction):
+                continue
+            key = _question_signature(interaction.question)
+            if not key:
+                continue
+
+            sources = [ChatSource(**source) for source in (interaction.sources_json or [])]
+            group = groups.setdefault(
+                key,
+                {
+                    "question": interaction.question,
+                    "occurrences": 0,
+                    "negative_feedback_count": 0,
+                    "needs_manager_confirmation_count": 0,
+                    "last_seen_at": interaction.created_at,
+                    "sample_sources": sources[:2],
+                },
+            )
+            group["occurrences"] = int(group["occurrences"]) + 1
+            if interaction.feedback_rating == "nao_ajudou":
+                group["negative_feedback_count"] = int(group["negative_feedback_count"]) + 1
+            if interaction.needs_manager_confirmation or interaction.error_message == "contexto_insuficiente":
+                group["needs_manager_confirmation_count"] = int(group["needs_manager_confirmation_count"]) + 1
+            if interaction.created_at > group["last_seen_at"]:
+                group["last_seen_at"] = interaction.created_at
+                group["question"] = interaction.question
+                if sources:
+                    group["sample_sources"] = sources[:2]
+
+        ordered = sorted(
+            groups.values(),
+            key=lambda item: (
+                int(item["negative_feedback_count"]) + int(item["needs_manager_confirmation_count"]),
+                int(item["occurrences"]),
+                item["last_seen_at"],
+            ),
+            reverse=True,
+        )
+        return [
+            AiKnowledgeGapRead(
+                question=str(item["question"]),
+                occurrences=int(item["occurrences"]),
+                negative_feedback_count=int(item["negative_feedback_count"]),
+                needs_manager_confirmation_count=int(item["needs_manager_confirmation_count"]),
+                last_seen_at=item["last_seen_at"],
+                suggested_manual_update=self._suggest_manual_update(str(item["question"]), item["sample_sources"]),
+                sample_sources=item["sample_sources"],
+            )
+            for item in ordered[:limit]
+        ]
 
     def _ask_gemini(
         self,
@@ -273,7 +350,7 @@ class AiService:
         needs_manager_confirmation: bool,
         latency_ms: int,
         error_message: str | None = None,
-    ) -> None:
+    ) -> int:
         sources_json = [source.model_dump() for source in sources]
         self.repository.add_chat_log(
             session=session,
@@ -284,7 +361,7 @@ class AiService:
             mode=ai_mode,
             needs_manager_confirmation=needs_manager_confirmation,
         )
-        self.repository.add_interaction(
+        interaction = self.repository.add_interaction(
             user=user,
             question=question,
             answer=reply,
@@ -292,9 +369,11 @@ class AiService:
             ai_mode=ai_mode,
             sources=sources_json,
             latency_ms=latency_ms,
+            needs_manager_confirmation=needs_manager_confirmation,
             error_message=error_message,
         )
         self.repository.commit()
+        return interaction.id
 
     @staticmethod
     def _last_user_question(payload: ChatRequest) -> str:
@@ -324,6 +403,10 @@ class AiService:
             created_at=interaction.created_at,
             error_message=interaction.error_message,
             latency_ms=interaction.latency_ms,
+            needs_manager_confirmation=interaction.needs_manager_confirmation,
+            feedback_rating=interaction.feedback_rating,
+            feedback_comment=interaction.feedback_comment,
+            feedback_created_at=interaction.feedback_created_at,
         )
 
     @staticmethod
@@ -336,6 +419,48 @@ class AiService:
             sources_count,
             latency_ms,
         )
+
+    @staticmethod
+    def _is_knowledge_gap_candidate(interaction: AiInteraction) -> bool:
+        return (
+            interaction.feedback_rating == "nao_ajudou"
+            or interaction.needs_manager_confirmation
+            or interaction.error_message == "contexto_insuficiente"
+            or not interaction.sources_json
+        )
+
+    @staticmethod
+    def _suggest_manual_update(question: str, sample_sources: object) -> str:
+        sources = sample_sources if isinstance(sample_sources, list) else []
+        if sources and isinstance(sources[0], ChatSource):
+            first_source = sources[0]
+            target = first_source.section_title or first_source.manual_title
+            return f"Revisar o manual {first_source.unit} / {target} para responder: {question}"
+        return f"Criar um trecho de manual operacional que responda com seguranca: {question}"
+
+
+def _question_signature(question: str) -> str:
+    normalized = unicodedata.normalize("NFKD", question.lower())
+    ascii_text = "".join(char for char in normalized if not unicodedata.combining(char))
+    tokens = [
+        token
+        for token in re.findall(r"[a-z0-9]{3,}", ascii_text)
+        if token
+        not in {
+            "como",
+            "qual",
+            "quais",
+            "para",
+            "porque",
+            "posso",
+            "devo",
+            "fazer",
+            "sobre",
+            "grupo",
+            "lia",
+        }
+    ]
+    return " ".join(tokens[:8])
 
 
 def describe_gemini_error(exc: Exception) -> str:

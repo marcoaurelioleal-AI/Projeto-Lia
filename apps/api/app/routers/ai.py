@@ -9,7 +9,16 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..models import User
-from ..schemas import AiChatHistoryItem, AiInteractionRead, AiMode, AiResponseMode, ChatRequest, ChatResponse
+from ..schemas import (
+    AiChatHistoryItem,
+    AiFeedbackCreate,
+    AiInteractionRead,
+    AiKnowledgeGapRead,
+    AiMode,
+    AiResponseMode,
+    ChatRequest,
+    ChatResponse,
+)
 from ..security import get_current_user, require_permission
 from ..services.ai_service import AiService
 
@@ -57,6 +66,25 @@ def ai_interactions(
         response_mode=response_mode,
         ai_mode=ai_mode,
     )
+
+
+@router.get("/knowledge-gaps", response_model=list[AiKnowledgeGapRead])
+def ai_knowledge_gaps(
+    limit: int = 8,
+    _: User = Depends(require_permission("view_audit")),
+    service: AiService = Depends(get_ai_service),
+) -> list[AiKnowledgeGapRead]:
+    return service.knowledge_gaps(limit=limit)
+
+
+@router.post("/interactions/{interaction_id}/feedback", response_model=AiInteractionRead)
+def ai_interaction_feedback(
+    interaction_id: int,
+    payload: AiFeedbackCreate,
+    user: User = Depends(get_current_user),
+    service: AiService = Depends(get_ai_service),
+) -> AiInteractionRead:
+    return service.feedback(interaction_id, payload, user)
 
 
 @router.post("/chat", response_model=ChatResponse)

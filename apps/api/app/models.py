@@ -64,6 +64,26 @@ class Store(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    action: Mapped[str] = mapped_column(String(120), index=True)
+    actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    actor_username: Mapped[str] = mapped_column(String(80), nullable=True, index=True)
+    actor_role: Mapped[str] = mapped_column(String(30), nullable=True)
+    entity_type: Mapped[str] = mapped_column(String(80), nullable=True, index=True)
+    entity_id: Mapped[str] = mapped_column(String(80), nullable=True, index=True)
+    store: Mapped[str] = mapped_column(String(80), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(30), default="success", index=True)
+    request_id: Mapped[str] = mapped_column(String(64), nullable=True, index=True)
+    ip_address: Mapped[str] = mapped_column(String(80), nullable=True)
+    user_agent: Mapped[str] = mapped_column(String(255), nullable=True)
+    details: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
+    actor: Mapped[User] = relationship()
+
+
 class Manual(Base):
     __tablename__ = "manuals"
 
@@ -231,6 +251,28 @@ class AiChatLog(Base):
     user: Mapped[User] = relationship()
 
 
+class AiKnowledgeChunk(Base):
+    __tablename__ = "ai_knowledge_chunks"
+    __table_args__ = (UniqueConstraint("chunk_key", name="uq_ai_knowledge_chunks_key"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chunk_key: Mapped[str] = mapped_column(String(160), unique=True, index=True)
+    source_type: Mapped[str] = mapped_column(String(30), default="manual", index=True)
+    manual_id: Mapped[int] = mapped_column(ForeignKey("manuals.id"), index=True)
+    section_id: Mapped[int] = mapped_column(ForeignKey("manual_sections.id"), nullable=True, index=True)
+    unit: Mapped[str] = mapped_column(String(80), index=True)
+    title: Mapped[str] = mapped_column(String(180))
+    section_title: Mapped[str] = mapped_column(String(160), nullable=True)
+    content: Mapped[str] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    embedding_json: Mapped[dict[str, float]] = mapped_column(JSON, default=dict)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+    manual: Mapped[Manual] = relationship()
+    section: Mapped[ManualSection] = relationship()
+
+
 class AiInteraction(Base):
     __tablename__ = "ai_interactions"
 
@@ -244,4 +286,8 @@ class AiInteraction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
     error_message: Mapped[str] = mapped_column(Text, nullable=True)
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
+    needs_manager_confirmation: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    feedback_rating: Mapped[str] = mapped_column(String(20), nullable=True, index=True)
+    feedback_comment: Mapped[str] = mapped_column(Text, nullable=True)
+    feedback_created_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     user: Mapped[User] = relationship()

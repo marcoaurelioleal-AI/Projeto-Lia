@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 from datetime import date, datetime, time
 from pathlib import Path
 
@@ -8,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from ..models import ChecklistEvidence, ChecklistRunItem, User
 from ..repositories.evidence_repository import EvidenceRepository
-from ..schemas import ChecklistEvidenceRead
+from ..schemas import ChecklistEvidenceRead, EvidenceAuditFilterOptionsRead
+from .audit_service import AuditService
 from .permission_service import require_store_access, require_user_permission
 from .storage_service import SupabaseStorageService, get_storage_service
 
@@ -65,15 +68,102 @@ class EvidenceService:
         store: str | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
+        checklist_title: str | None = None,
+        uploaded_by: str | None = None,
     ) -> list[ChecklistEvidenceRead]:
         require_user_permission(user, "view_audit")
         store = require_store_access(user, store) if store else require_store_access(user, None)
         start_at = datetime.combine(start_date, time.min) if start_date else None
         end_at = datetime.combine(end_date, time.max) if end_date else None
-        return [
+        rows = [
             self.serialize_evidence(evidence)
-            for evidence in self.repository.list_audit(store=store, start_at=start_at, end_at=end_at)
+            for evidence in self.repository.list_audit(
+                store=store,
+                start_at=start_at,
+                end_at=end_at,
+                checklist_title=checklist_title,
+                uploaded_by=uploaded_by,
+            )
         ]
+        self._record_audit_action(
+            user=user,
+            action="evidence_audit_list",
+            store=store,
+            details={
+                "start_date": start_date.isoformat() if start_date else None,
+                "end_date": end_date.isoformat() if end_date else None,
+                "checklist_title": checklist_title,
+                "uploaded_by": uploaded_by,
+                "result_count": len(rows),
+            },
+        )
+        return rows
+
+    def filter_options(self, user: User) -> EvidenceAuditFilterOptionsRead:
+        require_user_permission(user, "view_audit")
+        store = require_store_access(user, None)
+        options = self.repository.list_filter_options(store=store)
+        return EvidenceAuditFilterOptionsRead(**options)
+
+    def export_audit_csv(
+        self,
+        user: User,
+        store: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        checklist_title: str | None = None,
+        uploaded_by: str | None = None,
+    ) -> str:
+        rows = self.list_audit(
+            user=user,
+            store=store,
+            start_date=start_date,
+            end_date=end_date,
+            checklist_title=checklist_title,
+            uploaded_by=uploaded_by,
+        )
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(
+            [
+                "id",
+                "loja",
+                "checklist",
+                "item",
+                "usuario",
+                "arquivo",
+                "tipo",
+                "tamanho_bytes",
+                "criado_em",
+            ]
+        )
+        for row in rows:
+            writer.writerow(
+                [
+                    row.id,
+                    row.store or "",
+                    row.checklist_title or "",
+                    row.item_text or "",
+                    row.uploaded_by or "",
+                    row.original_filename,
+                    row.content_type,
+                    row.file_size,
+                    row.created_at.isoformat(),
+                ]
+            )
+        self._record_audit_action(
+            user=user,
+            action="evidence_audit_export",
+            store=store,
+            details={
+                "start_date": start_date.isoformat() if start_date else None,
+                "end_date": end_date.isoformat() if end_date else None,
+                "checklist_title": checklist_title,
+                "uploaded_by": uploaded_by,
+                "result_count": len(rows),
+            },
+        )
+        return output.getvalue()
 
     def get_file(self, evidence_id: int, user: User) -> ChecklistEvidence:
         require_user_permission(user, "view_evidences")
@@ -83,6 +173,15 @@ class EvidenceService:
         self._require_evidence_store_access(user, evidence)
         if evidence.storage_provider == "local" and not Path(evidence.file_path).exists():
             raise HTTPException(status_code=404, detail="Arquivo da evidencia nao encontrado")
+        item = evidence.checklist_run_item
+        run = item.run if item else None
+        self._record_audit_action(
+            user=user,
+            action="evidence_file_view",
+            store=run.store if run else None,
+            entity_id=str(evidence.id),
+            details={"filename": evidence.original_filename},
+        )
         return evidence
 
     def signed_url_for(self, evidence: ChecklistEvidence) -> str:
@@ -120,3 +219,23 @@ class EvidenceService:
         item = evidence.checklist_run_item
         run = item.run if item else None
         require_store_access(user, run.store if run else None)
+
+    def _record_audit_action(
+        self,
+        *,
+        user: User,
+        action: str,
+        store: str | None,
+        details: dict[str, object],
+        entity_id: str | None = None,
+    ) -> None:
+        AuditService(self.repository.db).record(
+            action=action,
+            actor_user_id=user.id,
+            actor_username=user.username,
+            actor_role=user.role,
+            entity_type="evidences",
+            entity_id=entity_id,
+            store=store,
+            details=details,
+        )

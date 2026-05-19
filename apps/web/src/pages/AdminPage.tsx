@@ -7,6 +7,7 @@ import { PageHeader } from '../components/PageHeader';
 import { useAuth } from '../contexts/useAuth';
 import type {
   AiInteraction,
+  AiKnowledgeGap,
   ChecklistTemplate,
   ChecklistTemplateCreate,
   ChecklistTemplateItem,
@@ -73,6 +74,11 @@ export function AdminPage() {
   const incidents = useQuery({ queryKey: ['admin-incidents'], queryFn: () => api.incidents(), enabled: isAdmin });
   const evidences = useQuery({ queryKey: ['admin-evidences'], queryFn: () => api.evidenceAudit(), enabled: isAdmin });
   const aiInteractions = useQuery({ queryKey: ['admin-ai-interactions'], queryFn: api.aiInteractions, enabled: isAdmin });
+  const aiKnowledgeGaps = useQuery({
+    queryKey: ['admin-ai-knowledge-gaps'],
+    queryFn: api.aiKnowledgeGaps,
+    enabled: isAdmin
+  });
 
   if (!isAdmin) {
     return (
@@ -112,6 +118,12 @@ export function AdminPage() {
           value={aiInteractions.data?.length ?? 0}
           icon={Bot}
           loading={aiInteractions.isLoading}
+        />
+        <AdminCard
+          title="Duvidas criticas"
+          value={aiKnowledgeGaps.data?.length ?? 0}
+          icon={AlertTriangle}
+          loading={aiKnowledgeGaps.isLoading}
         />
         <AdminCard
           title="Ocorrencias"
@@ -169,6 +181,10 @@ export function AdminPage() {
       </section>
 
       <section className="mt-5">
+        <KnowledgeGapsAdminSection gaps={aiKnowledgeGaps.data ?? []} loading={aiKnowledgeGaps.isLoading} />
+      </section>
+
+      <section className="mt-5">
         <ManualsAdminSection manuals={manuals.data ?? []} stores={stores.data ?? []} loading={manuals.isLoading} />
       </section>
 
@@ -222,6 +238,8 @@ function AiInteractionsAdminSection({
                 <span>{new Date(interaction.created_at).toLocaleString('pt-BR')}</span>
                 <span>{interaction.latency_ms} ms</span>
                 <span>{interaction.sources.length} fonte(s)</span>
+                {interaction.feedback_rating ? <span>feedback: {interaction.feedback_rating}</span> : null}
+                {interaction.needs_manager_confirmation ? <span>confirmar com gestao</span> : null}
               </div>
               {interaction.error_message ? (
                 <p className="mt-2 rounded-lg bg-lia-red/10 px-2 py-1 text-xs font-bold text-lia-red">
@@ -233,6 +251,52 @@ function AiInteractionsAdminSection({
         </div>
       ) : (
         <p className="mt-3 text-sm text-lia-muted">Nenhuma interacao com a Lia registrada ainda.</p>
+      )}
+    </div>
+  );
+}
+
+function KnowledgeGapsAdminSection({ gaps, loading }: { gaps: AiKnowledgeGap[]; loading: boolean }) {
+  return (
+    <div className="surface rounded-lg p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-black text-lia-burgundy">Duvidas para melhorar manuais</h3>
+          <p className="mt-1 text-sm text-lia-muted">
+            Perguntas com feedback negativo ou contexto insuficiente para revisar a base operacional.
+          </p>
+        </div>
+        <span className="rounded-lg bg-lia-red/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-lia-red">
+          Conhecimento
+        </span>
+      </div>
+
+      {loading ? <p className="mt-3 text-sm text-lia-muted">Carregando duvidas criticas...</p> : null}
+
+      {gaps.length ? (
+        <div className="mt-3 grid gap-3 xl:grid-cols-2">
+          {gaps.slice(0, 8).map((gap) => (
+            <article key={`${gap.question}-${gap.last_seen_at}`} className="rounded-lg bg-white p-3">
+              <div className="flex flex-wrap gap-2 text-xs font-bold text-lia-muted">
+                <span>{gap.occurrences} ocorrencia(s)</span>
+                <span>{gap.negative_feedback_count} feedback negativo</span>
+                <span>{gap.needs_manager_confirmation_count} sem base suficiente</span>
+              </div>
+              <p className="mt-2 text-sm font-black text-lia-burgundy">{gap.question}</p>
+              <p className="mt-2 rounded-lg bg-lia-cream px-3 py-2 text-xs leading-5 text-lia-muted">
+                {gap.suggested_manual_update}
+              </p>
+              {gap.sample_sources.length ? (
+                <p className="mt-2 text-xs font-semibold text-lia-muted">
+                  Fonte mais próxima: {gap.sample_sources[0].unit} /{' '}
+                  {gap.sample_sources[0].section_title ?? gap.sample_sources[0].manual_title}
+                </p>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-lia-muted">Ainda nao ha duvidas criticas suficientes para revisao.</p>
       )}
     </div>
   );

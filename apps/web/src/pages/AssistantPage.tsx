@@ -1,15 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Bot, Clock3, KeyRound, Send, ShieldCheck, Sparkles, UserRound } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bot,
+  Clock3,
+  KeyRound,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp,
+  UserRound
+} from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { PageHeader } from '../components/PageHeader';
 import { useAuth } from '../contexts/useAuth';
-import type { AiResponseMode, ChatMessage, ChatSource } from '../types';
+import type { AiFeedbackRating, AiResponseMode, ChatMessage, ChatSource } from '../types';
 
 type UiMessage = ChatMessage & {
   mode?: 'offline' | 'gemini' | 'error';
+  interactionId?: number;
   sources?: ChatSource[];
   needsManagerConfirmation?: boolean;
+  feedbackRating?: AiFeedbackRating | null;
 };
 
 const STORE = 'Grupo Lia';
@@ -29,6 +42,21 @@ export function AssistantPage() {
     }
   ]);
   const [input, setInput] = useState('');
+
+  const feedbackMutation = useMutation({
+    mutationFn: ({ interactionId, rating }: { interactionId: number; rating: AiFeedbackRating }) =>
+      api.submitAiFeedback(interactionId, rating),
+    onSuccess: (interaction) => {
+      setMessages((current) =>
+        current.map((message) =>
+          message.interactionId === interaction.id
+            ? { ...message, feedbackRating: interaction.feedback_rating }
+            : message
+        )
+      );
+      queryClient.invalidateQueries({ queryKey: ['ai-history'] });
+    }
+  });
 
   const { data: manuals = [] } = useQuery({ queryKey: ['manuals'], queryFn: api.manuals });
   const { data: history = [] } = useQuery({ queryKey: ['ai-history'], queryFn: api.aiHistory });
@@ -58,6 +86,7 @@ export function AssistantPage() {
           role: 'assistant',
           content: response.reply,
           mode: response.mode,
+          interactionId: response.interaction_id,
           sources: response.sources,
           needsManagerConfirmation: response.needs_manager_confirmation
         }
@@ -200,7 +229,12 @@ export function AssistantPage() {
       <section className="surface flex min-h-[62vh] flex-col rounded-lg">
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {messages.map((message, index) => (
-            <ChatBubble key={`${message.role}-${index}`} message={message} />
+            <ChatBubble
+              key={`${message.role}-${index}`}
+              message={message}
+              feedbackPending={feedbackMutation.isPending}
+              onFeedback={(interactionId, rating) => feedbackMutation.mutate({ interactionId, rating })}
+            />
           ))}
           {mutation.isPending ? <p className="text-sm font-semibold text-lia-muted">Lia consultando os manuais...</p> : null}
         </div>
@@ -227,7 +261,15 @@ export function AssistantPage() {
   );
 }
 
-function ChatBubble({ message }: { message: UiMessage }) {
+function ChatBubble({
+  message,
+  feedbackPending,
+  onFeedback
+}: {
+  message: UiMessage;
+  feedbackPending: boolean;
+  onFeedback: (interactionId: number, rating: AiFeedbackRating) => void;
+}) {
   const isUser = message.role === 'user';
 
   return (
@@ -250,6 +292,34 @@ function ChatBubble({ message }: { message: UiMessage }) {
           <p className="flex items-center gap-2 rounded-lg bg-lia-red/10 px-3 py-2 text-xs font-bold text-lia-red">
             <AlertTriangle size={14} /> Confirme com a gestao antes de aplicar esta orientacao.
           </p>
+        ) : null}
+        {!isUser && message.interactionId ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-lia-muted">
+            {message.feedbackRating ? (
+              <span className="rounded-lg bg-lia-green/10 px-3 py-2 text-lia-green">Feedback registrado</span>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  title="Marcar resposta como util"
+                  disabled={feedbackPending}
+                  onClick={() => onFeedback(message.interactionId!, 'ajudou')}
+                  className="focus-ring flex items-center gap-1 rounded-lg border border-lia-red/15 bg-white px-3 py-2 text-lia-burgundy disabled:opacity-60"
+                >
+                  <ThumbsUp size={14} /> Ajudou
+                </button>
+                <button
+                  type="button"
+                  title="Marcar resposta como insuficiente"
+                  disabled={feedbackPending}
+                  onClick={() => onFeedback(message.interactionId!, 'nao_ajudou')}
+                  className="focus-ring flex items-center gap-1 rounded-lg border border-lia-red/15 bg-white px-3 py-2 text-lia-burgundy disabled:opacity-60"
+                >
+                  <ThumbsDown size={14} /> Nao ajudou
+                </button>
+              </>
+            )}
+          </div>
         ) : null}
         {!isUser && message.sources?.length ? <Sources sources={message.sources} /> : null}
       </div>

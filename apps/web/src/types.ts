@@ -222,6 +222,12 @@ export interface ChecklistEvidence {
   item_text: string | null;
 }
 
+export interface EvidenceAuditFilterOptions {
+  stores: string[];
+  checklists: string[];
+  users: string[];
+}
+
 export interface ReportSummary {
   start_date: string;
   end_date: string;
@@ -236,6 +242,42 @@ export interface ReportSummary {
   incidents_by_severity: Record<string, number>;
   incidents_by_category: Record<string, number>;
   evidences_uploaded: number;
+}
+
+export interface StorePendingSummary {
+  store: string;
+  total_checklists: number;
+  total_items: number;
+  completed_items: number;
+  pending_tasks: number;
+  completion_percent: number;
+}
+
+export interface ExecutiveDashboard {
+  today: string;
+  visible_stores: string[];
+  summary_7d: ReportSummary;
+  summary_30d: ReportSummary;
+  store_rankings: StorePendingSummary[];
+  critical_incidents: OperationalIncident[];
+  recent_evidences: ChecklistEvidence[];
+}
+
+export interface AuditLog {
+  id: number;
+  action: string;
+  actor_user_id: number | null;
+  actor_username: string | null;
+  actor_role: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  store: string | null;
+  status: string;
+  request_id: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface ChatMessage {
@@ -260,6 +302,7 @@ export interface ChatResponse {
   reply: string;
   mode: AiMode;
   session_id: number;
+  interaction_id: number;
   sources: ChatSource[];
   needs_manager_confirmation: boolean;
   response_mode: AiResponseMode;
@@ -297,4 +340,20 @@ export interface AiInteraction {
   created_at: string;
   error_message: string | null;
   latency_ms: number;
+  needs_manager_confirmation: boolean;
+  feedback_rating: AiFeedbackRating | null;
+  feedback_comment: string | null;
+  feedback_created_at: string | null;
+}
+
+export type AiFeedbackRating = 'ajudou' | 'nao_ajudou';
+
+export interface AiKnowledgeGap {
+  question: string;
+  occurrences: number;
+  negative_feedback_count: number;
+  needs_manager_confirmation_count: number;
+  last_seen_at: string;
+  suggested_manual_update: string;
+  sample_sources: ChatSource[];
 }

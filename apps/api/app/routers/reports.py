@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import User
-from ..schemas import ReportSummaryRead
+from ..schemas import ExecutiveDashboardRead, ReportSummaryRead
 from ..security import get_current_user
 from ..services.report_service import ReportService
 
@@ -29,3 +29,11 @@ def get_summary(
     target_end = end_date or date.today()
     target_start = start_date or (target_end - timedelta(days=6))
     return service.summary(start_date=target_start, end_date=target_end, user=user, store=store)
+
+
+@router.get("/executive", response_model=ExecutiveDashboardRead)
+def get_executive_dashboard(
+    user: User = Depends(get_current_user),
+    service: ReportService = Depends(get_report_service),
+) -> ExecutiveDashboardRead:
+    return service.executive_dashboard(user=user)

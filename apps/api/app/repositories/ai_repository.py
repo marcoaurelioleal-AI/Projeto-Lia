@@ -69,6 +69,7 @@ class AiRepository:
         ai_mode: str,
         sources: list[dict[str, str | int | None]],
         latency_ms: int,
+        needs_manager_confirmation: bool,
         error_message: str | None = None,
     ) -> AiInteraction:
         interaction = AiInteraction(
@@ -79,10 +80,16 @@ class AiRepository:
             ai_mode=ai_mode,
             sources_json=sources,
             latency_ms=latency_ms,
+            needs_manager_confirmation=needs_manager_confirmation,
             error_message=error_message[:2000] if error_message else None,
         )
         self.db.add(interaction)
         return interaction
+
+    def get_interaction(self, interaction_id: int) -> AiInteraction | None:
+        return self.db.scalar(
+            select(AiInteraction).options(joinedload(AiInteraction.user)).where(AiInteraction.id == interaction_id)
+        )
 
     def list_chat_logs(self, user: User, limit: int = 8) -> list[AiChatLog]:
         query = (
@@ -117,6 +124,13 @@ class AiRepository:
         if ai_mode:
             query = query.where(AiInteraction.ai_mode == ai_mode)
         return list(self.db.scalars(query.limit(limit)).all())
+
+    def set_feedback(self, interaction: AiInteraction, rating: str, comment: str | None) -> AiInteraction:
+        interaction.feedback_rating = rating
+        interaction.feedback_comment = comment[:1200] if comment else None
+        interaction.feedback_created_at = utc_now()
+        self.db.flush()
+        return interaction
 
     def commit(self) -> None:
         self.db.commit()

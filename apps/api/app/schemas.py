@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -211,6 +211,7 @@ IncidentSeverity = Literal["baixa", "media", "alta", "critica"]
 IncidentStatus = Literal["aberta", "em_andamento", "resolvida", "cancelada"]
 AiResponseMode = Literal["rapido", "detalhado", "treinamento"]
 AiMode = Literal["gemini", "offline", "error"]
+AiFeedbackRating = Literal["ajudou", "nao_ajudou"]
 
 
 class OperationalIncidentCreate(BaseModel):
@@ -257,6 +258,12 @@ class ChecklistEvidenceRead(BaseModel):
     item_text: str | None = None
 
 
+class EvidenceAuditFilterOptionsRead(BaseModel):
+    stores: list[str]
+    checklists: list[str]
+    users: list[str]
+
+
 class StoreCreate(BaseModel):
     name: str = Field(min_length=2, max_length=80)
 
@@ -272,6 +279,45 @@ class StoreRead(BaseModel):
     active: bool
 
     model_config = {"from_attributes": True}
+
+
+class AuditLogRead(BaseModel):
+    id: int
+    action: str
+    actor_user_id: int | None = None
+    actor_username: str | None = None
+    actor_role: str | None = None
+    entity_type: str | None = None
+    entity_id: str | None = None
+    store: str | None = None
+    status: str
+    request_id: str | None = None
+    ip_address: str | None = None
+    user_agent: str | None = None
+    details: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RequestMetricsRead(BaseModel):
+    total_requests: int
+    error_requests: int
+    average_latency_ms: float
+    p95_latency_ms: float
+    by_status: dict[str, int]
+    by_path: dict[str, int]
+    last_request_at: datetime | None = None
+
+
+class ObservabilityStatusRead(BaseModel):
+    status: str
+    service: str
+    environment: str
+    database: str
+    storage_provider: str
+    started_at: datetime
+    request_metrics: RequestMetricsRead
 
 
 class ChecklistTemplateItemRead(BaseModel):
@@ -335,6 +381,25 @@ class ReportSummaryRead(BaseModel):
     evidences_uploaded: int
 
 
+class StorePendingSummaryRead(BaseModel):
+    store: str
+    total_checklists: int
+    total_items: int
+    completed_items: int
+    pending_tasks: int
+    completion_percent: int
+
+
+class ExecutiveDashboardRead(BaseModel):
+    today: date
+    visible_stores: list[str]
+    summary_7d: ReportSummaryRead
+    summary_30d: ReportSummaryRead
+    store_rankings: list[StorePendingSummaryRead]
+    critical_incidents: list[OperationalIncidentRead]
+    recent_evidences: list[ChecklistEvidenceRead]
+
+
 class ChatMessage(BaseModel):
     role: str = Field(pattern="^(user|assistant)$")
     content: str = Field(min_length=1, max_length=2000)
@@ -362,6 +427,7 @@ class ChatResponse(BaseModel):
     reply: str
     mode: str
     session_id: int
+    interaction_id: int
     sources: list[ChatSource] = []
     needs_manager_confirmation: bool = False
     response_mode: AiResponseMode = "rapido"
@@ -392,6 +458,25 @@ class AiInteractionRead(BaseModel):
     created_at: datetime
     error_message: str | None = None
     latency_ms: int
+    needs_manager_confirmation: bool = False
+    feedback_rating: AiFeedbackRating | None = None
+    feedback_comment: str | None = None
+    feedback_created_at: datetime | None = None
+
+
+class AiFeedbackCreate(BaseModel):
+    rating: AiFeedbackRating
+    comment: str | None = Field(default=None, max_length=1200)
+
+
+class AiKnowledgeGapRead(BaseModel):
+    question: str
+    occurrences: int
+    negative_feedback_count: int
+    needs_manager_confirmation_count: int
+    last_seen_at: datetime
+    suggested_manual_update: str
+    sample_sources: list[ChatSource] = []
 
 
 class HealthResponse(BaseModel):

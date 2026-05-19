@@ -1,8 +1,11 @@
 import type {
   AiChatHistoryItem,
+  AiFeedbackRating,
   AiInteraction,
+  AiKnowledgeGap,
   AiResponseMode,
   AiStatus,
+  AuditLog,
   ChatMessage,
   ChatResponse,
   ChecklistEvidence,
@@ -10,6 +13,8 @@ import type {
   ChecklistTemplate,
   ChecklistTemplateCreate,
   ChecklistTemplateItemCreate,
+  EvidenceAuditFilterOptions,
+  ExecutiveDashboard,
   IncidentStatus,
   LeadershipEmployee,
   LeadershipEmployeeCreate,
@@ -134,6 +139,18 @@ export async function fetchEvidenceBlob(path: string): Promise<Blob> {
   return response.blob();
 }
 
+async function requestBlob(path: string, options: RequestInit = {}): Promise<Blob> {
+  const response = await fetch(`${API_ROOT}${path}`, {
+    ...options,
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw new Error(detail.detail ?? 'Nao foi possivel completar a solicitacao.');
+  }
+  return response.blob();
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<LoginResponse>('/auth/login', {
@@ -197,6 +214,12 @@ export const api = {
     }),
   aiHistory: () => request<AiChatHistoryItem[]>('/ai/history'),
   aiInteractions: () => request<AiInteraction[]>('/ai/interactions'),
+  aiKnowledgeGaps: () => request<AiKnowledgeGap[]>('/ai/knowledge-gaps'),
+  submitAiFeedback: (interactionId: number, rating: AiFeedbackRating, comment?: string) =>
+    request<AiInteraction>(`/ai/interactions/${interactionId}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, comment })
+    }),
   aiStatus: () => request<AiStatus>('/ai/status'),
   adminUsers: () => request<User[]>('/admin/users'),
   createAdminUser: (payload: UserCreate) =>
@@ -331,6 +354,7 @@ export const api = {
         store: options.store
       })
     ),
+  executiveDashboard: () => request<ExecutiveDashboard>('/reports/executive'),
   uploadChecklistEvidence: (itemId: number, file: File) => {
     const form = new FormData();
     form.append('file', file);
@@ -342,12 +366,39 @@ export const api = {
   checklistItemEvidences: (itemId: number) =>
     request<ChecklistEvidence[]>(`/checklists/items/${itemId}/evidences`),
   checklistRunEvidences: (runId: number) => request<ChecklistEvidence[]>(`/checklists/${runId}/evidences`),
-  evidenceAudit: (options: { store?: string; startDate?: string; endDate?: string } = {}) =>
+  evidenceAudit: (
+    options: { store?: string; startDate?: string; endDate?: string; checklistTitle?: string; uploadedBy?: string } = {}
+  ) =>
     request<ChecklistEvidence[]>(
       withParams('/evidences', {
         store: options.store,
         start_date: options.startDate,
-        end_date: options.endDate
+        end_date: options.endDate,
+        checklist_title: options.checklistTitle,
+        uploaded_by: options.uploadedBy
+      })
+    ),
+  evidenceAuditFilterOptions: () => request<EvidenceAuditFilterOptions>('/evidences/filter-options'),
+  evidenceAuditExport: (
+    options: { store?: string; startDate?: string; endDate?: string; checklistTitle?: string; uploadedBy?: string } = {}
+  ) =>
+    requestBlob(
+      withParams('/evidences/export', {
+        store: options.store,
+        start_date: options.startDate,
+        end_date: options.endDate,
+        checklist_title: options.checklistTitle,
+        uploaded_by: options.uploadedBy
+      })
+    ),
+  auditLogs: (options: { action?: string; status?: string; entityType?: string; store?: string; limit?: number } = {}) =>
+    request<AuditLog[]>(
+      withParams('/audit/logs', {
+        action: options.action,
+        status: options.status,
+        entity_type: options.entityType,
+        store: options.store,
+        limit: options.limit
       })
     )
 };
